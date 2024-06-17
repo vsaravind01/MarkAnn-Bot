@@ -1,0 +1,15 @@
+version: "3"
+
+services:
+  bot:
+    image: vsaravind01/markann-bot:0.1.0.lamd64
+    platform: linux/amd64
+    container_name: markann-bot
+    volumes:
+      - "./logs:/app/bot/logs"
+    restart: always
+    environment:
+      - QDRANT_API_KEY=$QDRANT_API_KEY
+      - QDRANT_URL=$QDRANT_URL
+      - COHERE_API_KEY=$COHERE_API_KEY
+      - TELEGRAM_API_KEY=$TELEGRAM_API_KEY
