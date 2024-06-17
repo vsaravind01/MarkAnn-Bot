@@ -52,7 +52,7 @@ jobs:
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
-          TELEGRAM_BOT_API_KEY: ${{ secrets.TELEGRAM_BOT_API_KEY }}
+          $TELEGRAM_API_KEY: ${{ secrets.TELEGRAM_API_KEY }}
         run: |
           echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
           scp -o StrictHostKeyChecking=no -i private_key "./docker/bot/docker-compose.yml" $EC2_USER@$EC2_HOST:/home/$EC2_USER/docker-compose.yml
@@ -60,5 +60,9 @@ jobs:
             docker image prune -f &&
             docker-compose pull &&
             docker-compose down &&
+            export QDRANT_API_KEY=$QDRANT_API_KEY &&
+            export QDRANT_URL=$QDRANT_URL &&
+            export COHERE_API_KEY=$COHERE_API_KEY &&
+            export TELEGRAM_API_KEY=$TELEGRAM_API_KEY &&
             docker-compose up -d
           '
