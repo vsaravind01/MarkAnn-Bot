@@ -62,9 +62,9 @@ jobs:
             docker image prune -f &&
             docker-compose pull &&
             docker-compose down &&
-            QDRANT_API_KEY=$QDRANT_API_KEY \
-            QDRANT_URL=$QDRANT_URL \
-            COHERE_API_KEY=$COHERE_API_KEY \
-            TELEGRAM_API_KEY=$TELEGRAM_API_KEY \
+            QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }} \
+            QDRANT_URL=${{ secrets.QDRANT_URL }} \
+            COHERE_API_KEY=${{ secrets.COHERE_API_KEY }} \
+            TELEGRAM_API_KEY=${{ secrets.TELEGRAM_API_KEY }} \
             docker-compose up -d
           '
