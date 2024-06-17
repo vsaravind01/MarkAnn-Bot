@@ -11,6 +11,8 @@ on:
       - 'common_managers/**'
       - 'docker/**'
       - 'requirements.txt'
+      - '.github/workflows/build_and_push_telegram_bot.yml'
+
   workflow_dispatch:
 
 jobs:
