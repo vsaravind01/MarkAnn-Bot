@@ -1,0 +1,64 @@
+name: telegram-bot-build-push-restart
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'bot/**'
+      - 'channels/**'
+      - 'database/**'
+      - 'common_managers/**'
+      - 'docker/**'
+      - 'requirements.txt'
+  workflow_dispatch:
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t markann-bot:0.1.0.lamd64 -f ./docker/bot/Dockerfile --platform linux/amd64 .
+          docker tag markann-bot:0.1.0.lamd64 vsaravind01/markann-bot:0.1.0.lamd64
+
+      - name: Push Docker image
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+          docker push vsaravind01/markann-bot:0.1.0.lamd64
+
+  restart-container:
+    runs-on: ubuntu-latest
+    needs: build-image
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Copy docker-compose.yml and restart container
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          TELEGRAM_BOT_API_KEY: ${{ secrets.TELEGRAM_BOT_API_KEY }}
+        run: |
+          echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+          scp -o StrictHostKeyChecking=no -i private_key "./docker/bot/docker-compose.yml" $EC2_USER@$EC2_HOST:/home/$EC2_USER/docker-compose.yml
+          ssh -o StrictHostKeyChecking=no -i private_key $EC2_USER@$EC2_HOST '
+            docker image prune -f &&
+            docker-compose -f /home/$EC2_USER/docker-compose.yml pull &&
+            docker-compose -f /home/$EC2_USER/docker-compose.yml down &&
+            docker-compose -f /home/$EC2_USER/docker-compose.yml up -d
+          '
