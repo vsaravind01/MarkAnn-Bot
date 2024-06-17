@@ -141,5 +141,5 @@ Here are a few do's and don'ts that you should follow while contributing to this
 
 # License
 
-This project is licensed under the GNU General Public License v3.0.
+This project is licensed under the GNU General Public License v2.0.
 For more information, please refer to the [LICENSE](LICENSE) file.
