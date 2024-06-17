@@ -58,7 +58,7 @@ jobs:
           scp -o StrictHostKeyChecking=no -i private_key "./docker/bot/docker-compose.yml" $EC2_USER@$EC2_HOST:/home/$EC2_USER/docker-compose.yml
           ssh -o StrictHostKeyChecking=no -i private_key $EC2_USER@$EC2_HOST '
             docker image prune -f &&
-            docker-compose -f /home/$EC2_USER/docker-compose.yml pull &&
-            docker-compose -f /home/$EC2_USER/docker-compose.yml down &&
-            docker-compose -f /home/$EC2_USER/docker-compose.yml up -d
+            docker-compose pull &&
+            docker-compose down &&
+            docker-compose up -d
           '
