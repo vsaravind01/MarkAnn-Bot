@@ -118,12 +118,7 @@ Alternatively, you can build and run the Docker container.
 Contributions are welcome from everyone. Whether you're a seasoned developer 
 or just getting started with open-source, your contributions are invaluable 
 to us. Together, we can create an amazing tool that keeps investors informed 
-and helps them make better decisions. 
-
-> It is not about professional experience; 
-it always about willingness to learn and contribute - 
-that's what matters in open-source.
-
+and helps them make better decisions.
 
 Here are a few do's and don'ts that you should follow while contributing to this project.
 
