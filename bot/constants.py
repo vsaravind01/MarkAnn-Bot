@@ -40,7 +40,7 @@ PRESS_RELEASE_MESSAGE_TEMPLATE = """
 *{ann_type}* from {company} at {time}
 *Date:* {date}
 
-*company:* [{company}](https://google.com/search?q={company})
+*company:* {company}
 *value:* {value}
 
 {description}
