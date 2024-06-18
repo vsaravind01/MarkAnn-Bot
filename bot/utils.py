@@ -1,7 +1,10 @@
+import logging
 import re
 from datetime import datetime
 
 from bot.constants import PRESS_RELEASE_MESSAGE_TEMPLATE
+
+logger = logging.getLogger(__name__)
 
 
 def auto_strptime(date_str: str):
@@ -34,6 +37,7 @@ def format_message(item: dict):
     str
         Formatted message to be sent to the user
     """
+    logger.info(f"Formatting message for {str(item)}")
     return escape_markdown(
         PRESS_RELEASE_MESSAGE_TEMPLATE.format(
             ann_type=item["summary"]["type"].upper(),
