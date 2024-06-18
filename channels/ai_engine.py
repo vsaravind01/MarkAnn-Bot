@@ -14,10 +14,12 @@ PROMPT = """You are an AI assistant who Checks whether a given CONTENT mentions 
 2. Orders or contracts worth more than 50 Crores in Indian Rupees (INR) or equivalent in any other currency
 3. New product launches
 4. New partnerships or collaborations
+5. Financial results
+6. Other significant events with a suitable category name
 
 If found any, reply exactly in the following json format and make sure keep the keys and values enclosed in double quotes:
 {{
-    "type": Type of the event any one of (acquisition, order, product launch, or partnership)
+    "type": Type of the event with a suitable category name (acquisition, order, product launch, partnership, or other suitable category name)
     "value": Value of the acquisition or order in Crores (only if the type is an order or acquisition). If it is a product launch or partnership, value should be null.
     "description": Summary of the CONTENT provided
 }}
