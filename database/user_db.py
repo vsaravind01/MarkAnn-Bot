@@ -58,7 +58,7 @@ class UserMessageSchema(Base):
 
     id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
     user_id = sqlalchemy.Column(sqlalchemy.String, sqlalchemy.ForeignKey("users.id"))
-    timestamp = sqlalchemy.Column(sqlalchemy.DateTime, default=datetime.now())
+    timestamp = sqlalchemy.Column(sqlalchemy.DateTime, default=datetime.now)
     user = relationship("UserSchema", backref="messages")
 
     def __repr__(self):
