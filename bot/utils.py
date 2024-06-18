@@ -52,7 +52,7 @@ def format_message(item: dict):
             value=item["summary"]["value"],
             description=escape_markdown(item["summary"]["description"]),
             pdf_link=item["attachment"],
-            bse_link=item["url"],
+            bse_link=escape_markdown(item["url"], entity_type="text_link"),
         ),
         version=3,
     )
