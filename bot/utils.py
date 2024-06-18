@@ -1,6 +1,7 @@
 import logging
 import re
 from datetime import datetime
+from typing import Optional
 
 from bot.constants import PRESS_RELEASE_MESSAGE_TEMPLATE
 
@@ -38,12 +39,16 @@ def format_message(item: dict):
         Formatted message to be sent to the user
     """
     logger.info(f"Formatting message for {str(item)}")
+    if "company" in item["summary"]:
+        company_info = f"[{item['summary']['company']}](https://google.com/search?q={item['summary']['company']})"
+    else:
+        company_info = "NA"
     return escape_markdown(
         PRESS_RELEASE_MESSAGE_TEMPLATE.format(
             ann_type=item["summary"]["type"].upper(),
             time=auto_strptime(item["date"]).strftime("%I:%M %p"),
             date=auto_strptime(item["date"]).strftime("%B %d, %Y"),
-            company=escape_markdown(item["company"]),
+            company=escape_markdown(company_info),
             value=item["summary"]["value"],
             description=escape_markdown(item["summary"]["description"]),
             pdf_link=item["attachment"],
@@ -53,7 +58,9 @@ def format_message(item: dict):
     )
 
 
-def escape_markdown(text: str, version: int = 2, entity_type: str = None) -> str:
+def escape_markdown(
+    text: str, version: int = 2, entity_type: str = None
+) -> Optional[str]:
     """
     Helper function to escape telegram markup symbols.
 
@@ -67,6 +74,8 @@ def escape_markdown(text: str, version: int = 2, entity_type: str = None) -> str
             See the official API documentation for details. Only valid in combination with
             ``version=2``, will be ignored else.
     """
+    if text is None:
+        return None
     if int(version) == 1:
         escape_chars = r"_*`["
     elif int(version) == 2:

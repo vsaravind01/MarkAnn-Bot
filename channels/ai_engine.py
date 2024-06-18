@@ -19,6 +19,7 @@ PROMPT = """You are an AI assistant who Checks whether a given CONTENT mentions 
 
 If found any, reply exactly in the following json format and make sure keep the keys and values enclosed in double quotes:
 {{
+    "company": Name of the company
     "type": Type of the event with a suitable category name (acquisition, order, product launch, partnership, or other suitable category name)
     "value": Value of the acquisition or order in Crores (only if the type is an order or acquisition). If it is a product launch or partnership, value should be null.
     "description": Summary of the CONTENT provided
