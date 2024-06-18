@@ -39,16 +39,16 @@ def format_message(item: dict):
         Formatted message to be sent to the user
     """
     logger.info(f"Formatting message for {str(item)}")
-    if "company" in item["summary"]:
-        company_info = f"[{item['summary']['company']}](https://google.com/search?q={item['summary']['company']})"
+    if "company" in item and item["company"] is not None:
+        company = item["company"]
     else:
-        company_info = "NA"
+        company = item["summary"]["company"]
     return escape_markdown(
         PRESS_RELEASE_MESSAGE_TEMPLATE.format(
             ann_type=item["summary"]["type"].upper(),
             time=auto_strptime(item["date"]).strftime("%I:%M %p"),
             date=auto_strptime(item["date"]).strftime("%B %d, %Y"),
-            company=escape_markdown(company_info),
+            company=escape_markdown(company),
             value=item["summary"]["value"],
             description=escape_markdown(item["summary"]["description"]),
             pdf_link=item["attachment"],
