@@ -4,8 +4,10 @@ from datetime import datetime
 
 from telegram.ext import CallbackQueryHandler, CommandHandler
 
-from bot import bots, commands, decorators
+from bot import bots, commands
+from bot.decorators import service_logger
 from bot.services import startup_service
+from database.decorators import run_migration
 
 if not os.path.exists(f"{os.path.dirname(__file__)}/logs"):
     os.makedirs(f"{os.path.dirname(__file__)}/logs")
@@ -19,7 +21,8 @@ logging.basicConfig(
 )
 
 
-@decorators.service_logger(service_name="MarkAnnBot")
+@run_migration
+@service_logger(service_name="MarkAnnBot")
 def main():
     """Main function to start the bot."""
 
