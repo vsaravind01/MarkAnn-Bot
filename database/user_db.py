@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional, Type
 
+import pytz
 import sqlalchemy
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -57,7 +58,9 @@ class UserMessageSchema(Base):
     __tablename__ = "user_messages"
 
     id = sqlalchemy.Column(sqlalchemy.String, primary_key=True)
-    user_id = sqlalchemy.Column(sqlalchemy.String, sqlalchemy.ForeignKey("users.id"), primary_key=True)
+    user_id = sqlalchemy.Column(
+        sqlalchemy.String, sqlalchemy.ForeignKey("users.id"), primary_key=True
+    )
     timestamp = sqlalchemy.Column(sqlalchemy.DateTime, default=datetime.now)
     user = relationship("UserSchema", backref="messages")
 
@@ -148,7 +151,13 @@ class UserDB:
 
     def create_message(self, message_id: str, user_id: str) -> UserMessageSchema:
         session = self.Session()
-        user_message = UserMessageSchema(id=message_id, user_id=user_id)
+        user_message = UserMessageSchema(
+            id=message_id,
+            user_id=user_id,
+            timestamp=datetime.now(tz=pytz.timezone("Asia/Kolkata")).replace(
+                tzinfo=None
+            ),
+        )
         session.add(user_message)
         session.commit()
         session.close()
@@ -163,7 +172,8 @@ class UserDB:
             # check only for date, not time
             filter_ = sqlalchemy.and_(
                 filter_,
-                sqlalchemy.func.date(UserMessageSchema.timestamp) == date.date(),
+                sqlalchemy.func.date(UserMessageSchema.timestamp)
+                == date.astimezone(tz=pytz.timezone("Asia/Kolkata")).date(),
             )
         messages = session.query(UserMessageSchema).filter(filter_).all()
         session.close()
