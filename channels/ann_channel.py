@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 
 import pandas as pd
+import pytz
 import requests
 
 from channels import utils
@@ -50,8 +51,12 @@ class AnnChannel:
         self.url_template = url_template
         self.n_items = n_items
         self.frequency = frequency
-        self.start_date = start_date
-        self.end_date = end_date
+        self.start_date = start_date.astimezone(
+            tz=pytz.timezone("Asia/Kolkata")
+        ).replace(tzinfo=None)
+        self.end_date = end_date.astimezone(tz=pytz.timezone("Asia/Kolkata")).replace(
+            tzinfo=None
+        )
         self.kwargs = kwargs
 
     def fetch(self) -> list:
