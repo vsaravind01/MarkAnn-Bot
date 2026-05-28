@@ -1,5 +1,4 @@
 import asyncio
-import pytest
 from engine.consumer import ConsumerPool, STOP_SENTINEL
 
 
@@ -25,7 +24,7 @@ async def test_consumers_process_all_items():
 async def test_scale_up_adds_consumers():
     queue = asyncio.Queue()
 
-    async def processor(item):
+    async def processor(_):
         await asyncio.sleep(0)
 
     pool = ConsumerPool(queue=queue, processor_fn=processor, size=2)
@@ -41,7 +40,7 @@ async def test_scale_up_adds_consumers():
 async def test_scale_down_removes_consumers():
     queue = asyncio.Queue()
 
-    async def processor(item):
+    async def processor(_):
         await asyncio.sleep(0)
 
     pool = ConsumerPool(queue=queue, processor_fn=processor, size=4)
