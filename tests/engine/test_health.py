@@ -1,4 +1,3 @@
-import pytest
 from engine.health import write_heartbeat, write_last_success, write_status, write_error_count, write_interval, read_health
 
 
