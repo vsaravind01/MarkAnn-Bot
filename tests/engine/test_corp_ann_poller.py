@@ -31,7 +31,7 @@ async def test_fetch_sends_today_dates(fake_redis):
     today = date.today().strftime("%d-%m-%Y")
     captured = {}
 
-    def capture(request, _):
+    def capture(request, route):  # noqa: ARG001 — respx injects route by name
         captured["params"] = dict(request.url.params)
         return httpx.Response(200, json=[])
 
