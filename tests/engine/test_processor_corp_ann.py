@@ -1,12 +1,10 @@
-import asyncio
 import json
-import pytest
 import respx
 import httpx
 from concurrent.futures import ProcessPoolExecutor
 from unittest.mock import AsyncMock
 from engine.processor.corp_ann import CorporateAnnouncementsProcessor, ANNOUNCEMENT_CATEGORIES
-from database.redis import dedup_key, result_key, alert_channel
+from database.redis import dedup_key
 
 SAMPLE_ITEM = {
     "seq_id": "106644730",
