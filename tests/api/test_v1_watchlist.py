@@ -30,7 +30,7 @@ async def test_subscribe_adds_to_watchlist_and_redis():
             "/api/v1/watchlist", json={"user_id": user_id, "symbol": "INFY"}
         )
     assert response.status_code == 200
-    members = await redis.smembers(watch_key("INFY"))
+    members = await redis.smembers(watch_key("INFY"))  # type: ignore[misc]
     assert str(user_id) in members
 
 
@@ -46,7 +46,7 @@ async def test_unsubscribe_removes_from_watchlist_and_redis():
             "/api/v1/watchlist", params={"user_id": user_id, "symbol": "INFY"}
         )
     assert response.status_code == 200
-    members = await redis.smembers(watch_key("INFY"))
+    members = await redis.smembers(watch_key("INFY"))  # type: ignore[misc]
     assert str(user_id) not in members
 
 
