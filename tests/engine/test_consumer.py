@@ -1,5 +1,6 @@
 import asyncio
-from engine.consumer import ConsumerPool, STOP_SENTINEL
+
+from engine.consumer import STOP_SENTINEL, ConsumerPool
 
 
 async def test_consumers_process_all_items():

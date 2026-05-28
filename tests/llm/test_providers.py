@@ -1,9 +1,11 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from llm.factory import get_provider
-from llm.openai import OpenAIProvider
+
+import pytest
+
 from llm.anthropic import AnthropicProvider
+from llm.factory import get_provider
 from llm.gemini import GeminiProvider
+from llm.openai import OpenAIProvider
 
 
 async def test_openai_summarize():

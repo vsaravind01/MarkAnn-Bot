@@ -1,1 +1,0 @@
-uvicorn api.app:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --reload --reload-dir 'app' --host 0.0.0.0 --port 8000

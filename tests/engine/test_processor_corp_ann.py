@@ -1,10 +1,12 @@
 import json
-import respx
-import httpx
 from concurrent.futures import ProcessPoolExecutor
 from unittest.mock import AsyncMock
-from engine.processor.corp_ann import CorporateAnnouncementsProcessor, ANNOUNCEMENT_CATEGORIES
+
+import httpx
+import respx
+
 from database.redis import dedup_key
+from engine.processor.corp_ann import ANNOUNCEMENT_CATEGORIES, CorporateAnnouncementsProcessor
 
 SAMPLE_ITEM = {
     "seq_id": "106644730",

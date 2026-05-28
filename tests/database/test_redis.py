@@ -1,10 +1,10 @@
 from database.redis import (
+    alert_channel,
     dedup_key,
     result_key,
-    watch_key,
-    user_channels_key,
-    alert_channel,
     seconds_until_midnight,
+    user_channels_key,
+    watch_key,
 )
 
 

@@ -1,5 +1,5 @@
 import fakeredis.aioredis
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 
 async def test_get_all_pollers_health():

@@ -1,9 +1,11 @@
 import json
 import re
+
+import httpx
 import pytest
 import respx
-import httpx
-from engine.session import NseSession, NSE_HOME
+
+from engine.session import NSE_HOME, NseSession
 
 
 @respx.mock

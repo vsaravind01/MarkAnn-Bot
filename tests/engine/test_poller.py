@@ -1,10 +1,12 @@
 import asyncio
-import pytest
-import httpx
 from unittest.mock import AsyncMock
+
+import httpx
+import pytest
+
+from engine.circuit_breaker import CircuitState
 from engine.poller import Poller
 from engine.session import NseSession
-from engine.circuit_breaker import CircuitState
 
 
 class _StopTest(BaseException):

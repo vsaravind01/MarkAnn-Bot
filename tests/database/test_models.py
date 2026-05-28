@@ -1,5 +1,8 @@
+from datetime import UTC
+
 from sqlalchemy import select
-from database.models import User, UserWatchlist, EngineConfig, Announcement
+
+from database.models import Announcement, EngineConfig, User, UserWatchlist
 
 
 async def test_user_create(async_db_session):
@@ -34,7 +37,7 @@ async def test_engine_config_upsert(async_db_session):
 
 
 async def test_announcement_fields(async_db_session):
-    from datetime import datetime, timezone
+    from datetime import datetime
     ann = Announcement(
         seq_id="12345",
         symbol="INFY",
@@ -43,7 +46,7 @@ async def test_announcement_fields(async_db_session):
         announcement_text="Quarterly results...",
         summary="Strong Q4 growth.",
         attachment_url="https://nsearchives.nseindia.com/test.pdf",
-        announced_at=datetime(2026, 5, 28, 23, 55, 28, tzinfo=timezone.utc),
+        announced_at=datetime(2026, 5, 28, 23, 55, 28, tzinfo=UTC),
     )
     async_db_session.add(ann)
     await async_db_session.commit()

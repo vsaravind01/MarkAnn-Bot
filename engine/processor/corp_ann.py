@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from concurrent.futures import ProcessPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import pytz
@@ -101,7 +101,7 @@ class CorporateAnnouncementsProcessor:
             "summary": summary,
             "attachment_url": attachment_url,
             "announced_at": announced_at.isoformat(),
-            "processed_at": datetime.now(tz=timezone.utc).isoformat(),
+            "processed_at": datetime.now(tz=UTC).isoformat(),
         }
         payload_json = json.dumps(payload)
 
