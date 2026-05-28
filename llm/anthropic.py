@@ -1,4 +1,5 @@
 import os
+from typing import cast
 
 import anthropic as _anthropic
 from anthropic.types import TextBlock
@@ -26,9 +27,7 @@ class AnthropicProvider:
             max_tokens=256,
             messages=[{"role": "user", "content": _SUMMARIZE_PROMPT.format(text=text)}],
         )
-        block = message.content[0]
-        assert isinstance(block, TextBlock)
-        return block.text.strip()
+        return cast(TextBlock, message.content[0]).text.strip()
 
     async def classify(self, text: str, categories: list[str]) -> str:
         cats = ", ".join(categories)
@@ -42,6 +41,4 @@ class AnthropicProvider:
                 }
             ],
         )
-        block = message.content[0]
-        assert isinstance(block, TextBlock)
-        return block.text.strip()
+        return cast(TextBlock, message.content[0]).text.strip()
