@@ -1,6 +1,7 @@
 import os
 
 import anthropic as _anthropic
+from anthropic.types import TextBlock
 
 _SUMMARIZE_PROMPT = (
     "Summarise the following Indian stock market corporate announcement in 2-3 concise "
@@ -25,7 +26,9 @@ class AnthropicProvider:
             max_tokens=256,
             messages=[{"role": "user", "content": _SUMMARIZE_PROMPT.format(text=text)}],
         )
-        return message.content[0].text.strip()
+        block = message.content[0]
+        assert isinstance(block, TextBlock)
+        return block.text.strip()
 
     async def classify(self, text: str, categories: list[str]) -> str:
         cats = ", ".join(categories)
@@ -39,4 +42,6 @@ class AnthropicProvider:
                 }
             ],
         )
-        return message.content[0].text.strip()
+        block = message.content[0]
+        assert isinstance(block, TextBlock)
+        return block.text.strip()

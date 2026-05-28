@@ -26,7 +26,7 @@ class OpenAIProvider:
             ],
             max_tokens=256,
         )
-        return response.choices[0].message.content.strip()
+        return (response.choices[0].message.content or "").strip()
 
     async def classify(self, text: str, categories: list[str]) -> str:
         cats = ", ".join(categories)
@@ -38,4 +38,4 @@ class OpenAIProvider:
             ],
             max_tokens=32,
         )
-        return response.choices[0].message.content.strip()
+        return (response.choices[0].message.content or "").strip()
