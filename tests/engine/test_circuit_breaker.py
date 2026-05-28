@@ -1,5 +1,4 @@
 import time
-import pytest
 from engine.circuit_breaker import CircuitBreaker, CircuitState
 
 
