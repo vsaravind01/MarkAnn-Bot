@@ -1,0 +1,33 @@
+# Environment
+.env
+.env.*
+*.env
+
+# UV
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+dist/
+build/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# App
+*.db
+logs/
+
+# Claude / Superpowers artifacts
+CLAUDE.md
+docs/
+
