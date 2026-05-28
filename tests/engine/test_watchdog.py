@@ -1,6 +1,5 @@
 import asyncio
 import time
-import pytest
 from unittest.mock import AsyncMock
 from engine.supervisor import Watchdog
 

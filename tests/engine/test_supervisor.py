@@ -1,5 +1,4 @@
 import asyncio
-import pytest
 from engine.supervisor import Supervisor
 
 

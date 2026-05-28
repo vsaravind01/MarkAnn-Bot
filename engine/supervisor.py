@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import time
-from typing import Awaitable, Callable
+from typing import Any, Callable, Coroutine
 
 logger = logging.getLogger(__name__)
 
@@ -10,10 +10,10 @@ class Supervisor:
     def __init__(self, restart_delay: float = 2.0) -> None:
         self._restart_delay = restart_delay
         self._tasks: dict[str, asyncio.Task] = {}
-        self._factories: dict[str, Callable[[], Awaitable[None]]] = {}
+        self._factories: dict[str, Callable[[], Coroutine[Any, Any, None]]] = {}
         self._shutdown = False
 
-    def register(self, name: str, factory: Callable[[], Awaitable[None]]) -> None:
+    def register(self, name: str, factory: Callable[[], Coroutine[Any, Any, None]]) -> None:
         self._factories[name] = factory
 
     async def start(self, name: str) -> None:
