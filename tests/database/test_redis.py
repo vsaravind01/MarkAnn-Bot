@@ -1,6 +1,4 @@
-import pytest
 from database.redis import (
-    get_redis_client,
     dedup_key,
     result_key,
     watch_key,
