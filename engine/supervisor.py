@@ -36,8 +36,8 @@ class Supervisor:
         logger.warning(
             f"Supervisor: {name!r} ended (exc={exc!r}), restarting in {self._restart_delay}s"
         )
-        loop = asyncio.get_event_loop()
-        loop.call_later(self._restart_delay, lambda: asyncio.ensure_future(self.start(name)))
+        loop = asyncio.get_running_loop()
+        loop.call_later(self._restart_delay, lambda: asyncio.create_task(self.start(name)))
 
     async def restart(self, name: str) -> None:
         if name in self._tasks and not self._tasks[name].done():

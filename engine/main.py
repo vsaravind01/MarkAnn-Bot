@@ -79,7 +79,14 @@ async def run() -> None:
         watchdog.register("corp_ann_poller")
 
         await supervisor.start_all()
-        await asyncio.gather(watchdog.run(), return_exceptions=True)
+        try:
+            await asyncio.gather(watchdog.run(), return_exceptions=True)
+        finally:
+            await supervisor.shutdown()
+            await corp_ann_pool.stop()
+
+    process_pool.shutdown(wait=False)
+    await redis.aclose()
 
 
 def main() -> None:
