@@ -1,6 +1,5 @@
-import pytest
 from sqlalchemy import select
-from database.models import User, UserWatchlist, UserChannel, EngineConfig, Announcement
+from database.models import User, UserWatchlist, EngineConfig, Announcement
 
 
 async def test_user_create(async_db_session):
