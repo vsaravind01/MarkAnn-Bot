@@ -38,6 +38,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://markann:markann@postgres:5432/markann
       UV_PROJECT_ENVIRONMENT: /venv
+    volumes:
+      - .:/app
     depends_on:
       postgres:
         condition: service_healthy
