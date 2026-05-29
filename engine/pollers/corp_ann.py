@@ -28,4 +28,10 @@ class CorporateAnnouncementsPoller(Poller):
             params={"index": self._index, "from_date": today, "to_date": today},
         )
         response.raise_for_status()
+        content_type = response.headers.get("content-type", "")
+        if "application/json" not in content_type:
+            raise ValueError(
+                f"NSE returned non-JSON response (content-type={content_type!r}, "
+                f"status={response.status_code}) — session cookie may be missing or blocked"
+            )
         return response.json()
