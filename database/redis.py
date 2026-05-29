@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta
 
+import pytz
 from redis.asyncio import Redis
 from redis.asyncio import from_url as redis_from_url
 
@@ -12,8 +13,11 @@ def get_redis_client(url: str | None = None) -> Redis:
     )
 
 
+_IST = pytz.timezone("Asia/Kolkata")
+
+
 def seconds_until_midnight() -> int:
-    now = datetime.now()
+    now = datetime.now(tz=_IST)
     midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     return int((midnight - now).total_seconds())
 
@@ -23,7 +27,7 @@ def dedup_key(api: str, seq_id: str) -> str:
 
 
 def result_key(symbol: str, seq_id: str) -> str:
-    date_str = datetime.now().strftime("%Y%m%d")
+    date_str = datetime.now(tz=_IST).strftime("%Y%m%d")
     return f"result:{date_str}:{symbol}:{seq_id}"
 
 

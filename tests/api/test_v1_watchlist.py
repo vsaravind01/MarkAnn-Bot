@@ -12,7 +12,13 @@ async def _setup():
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with factory() as s:
-        user = User()
+        user = User(
+            email="watchlist@example.com",
+            password_hash="hash",
+            role="trader",
+            first_name="A",
+            last_name="B",
+        )
         s.add(user)
         await s.commit()
         user_id = user.id
@@ -24,6 +30,7 @@ async def test_subscribe_adds_to_watchlist_and_redis():
     redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
 
     from api.app import create_app
+
     app = create_app(redis_override=redis, db_factory_override=db_factory)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(
@@ -39,6 +46,7 @@ async def test_unsubscribe_removes_from_watchlist_and_redis():
     redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
 
     from api.app import create_app
+
     app = create_app(redis_override=redis, db_factory_override=db_factory)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await client.post("/api/v1/watchlist", json={"user_id": user_id, "symbol": "INFY"})
@@ -55,8 +63,11 @@ async def test_subscribe_duplicate_is_idempotent():
     redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
 
     from api.app import create_app
+
     app = create_app(redis_override=redis, db_factory_override=db_factory)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await client.post("/api/v1/watchlist", json={"user_id": user_id, "symbol": "INFY"})
-        response = await client.post("/api/v1/watchlist", json={"user_id": user_id, "symbol": "INFY"})
+        response = await client.post(
+            "/api/v1/watchlist", json={"user_id": user_id, "symbol": "INFY"}
+        )
     assert response.status_code == 200

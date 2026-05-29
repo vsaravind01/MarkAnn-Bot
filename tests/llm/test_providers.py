@@ -51,9 +51,9 @@ async def test_gemini_summarize():
     mock_response = MagicMock()
     mock_response.text = "New product launched."
     with patch("llm.gemini.genai") as mock_genai:
-        mock_model = AsyncMock()
-        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
-        mock_genai.GenerativeModel.return_value = mock_model
+        mock_client = MagicMock()
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+        mock_genai.Client.return_value = mock_client
         provider = GeminiProvider(api_key="test-key")
         result = await provider.summarize("Launch of new product...")
     assert result == "New product launched."
