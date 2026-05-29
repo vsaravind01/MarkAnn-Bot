@@ -32,7 +32,7 @@ class Supervisor:
             return
         if task.cancelled():
             return
-        exc = task.exception() if not task.cancelled() else None
+        exc = task.exception()
         logger.warning(
             f"Supervisor: {name!r} ended (exc={exc!r}), restarting in {self._restart_delay}s"
         )
@@ -87,6 +87,10 @@ class Watchdog:
                 await self._check(api)
 
     async def _check(self, api: str) -> None:
+        status = await self._redis.get(f"poller:{api}:status")
+        if status == "paused":
+            return
+
         heartbeat_exists = await self._redis.exists(f"poller:{api}:heartbeat")
         if not heartbeat_exists:
             logger.warning(f"Watchdog: {api!r} heartbeat missing — restarting")
