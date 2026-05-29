@@ -20,8 +20,11 @@ function shouldSetJsonContentType(body: BodyInit | null | undefined): boolean {
 async function doRefresh(): Promise<void> {
   const res = await fetch('/auth/refresh', { method: 'POST', credentials: 'include' })
   if (!res.ok) {
-    window.location.href = '/login'
-    throw new Error('Session expired')
+    const { pathname } = window.location
+    if (pathname !== '/login' && pathname !== '/bootstrap') {
+      window.location.href = '/login'
+    }
+    throw new ApiError(401, 'Session expired')
   }
 }
 
