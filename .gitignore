@@ -26,6 +26,7 @@ build/
 # App
 *.db
 logs/
+scripts/logs/
 
 # Claude / Superpowers artifacts
 CLAUDE.md
