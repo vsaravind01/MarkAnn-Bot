@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from api.admin.events import router as events_router
 from api.admin.pollers import router as pollers_router
 from api.admin.pools import router as pools_router
 from api.v1.watchlist import router as watchlist_router
@@ -34,6 +35,7 @@ def create_app(
     def health():
         return {"status": "ok"}
 
+    app.include_router(events_router)
     app.include_router(pollers_router)
     app.include_router(pools_router)
     app.include_router(watchlist_router)

@@ -4,6 +4,8 @@ import time
 from collections.abc import Callable, Coroutine
 from typing import Any
 
+from engine.events import push_event
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,6 +96,7 @@ class Watchdog:
         heartbeat_exists = await self._redis.exists(f"poller:{api}:heartbeat")
         if not heartbeat_exists:
             logger.warning(f"Watchdog: {api!r} heartbeat missing — restarting")
+            await push_event(self._redis, "warn", "watchdog restarted — heartbeat missing", api=api)
             await self._supervisor.restart(api)
             return
 

@@ -10,6 +10,7 @@ from database.models import EngineConfig
 from database.redis import get_redis_client
 from database.session import AsyncSessionLocal
 from engine.consumer import ConsumerPool
+from engine.events import push_event
 from engine.health import write_status
 from engine.pollers.corp_ann import CorporateAnnouncementsPoller
 from engine.processor.corp_ann import CorporateAnnouncementsProcessor
@@ -54,12 +55,15 @@ async def _listen_control(redis, supervisor: Supervisor) -> None:
                 await supervisor.pause(api)
                 await write_status(redis, api, "paused")
                 logger.info(f"Control: paused {api!r}")
+                await push_event(redis, "info", "paused by operator", api=api)
             elif action == "resume":
                 await supervisor.start(api)
                 logger.info(f"Control: resumed {api!r}")
+                await push_event(redis, "info", "resumed by operator", api=api)
             elif action == "restart":
                 await supervisor.restart(api)
                 logger.info(f"Control: restarted {api!r}")
+                await push_event(redis, "info", "restarted by operator", api=api)
             else:
                 logger.warning(f"Control: unknown action {action!r} for {api!r}")
         except Exception:

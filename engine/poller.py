@@ -6,6 +6,7 @@ import httpx
 from redis.asyncio import Redis
 
 from engine.circuit_breaker import CircuitBreaker
+from engine.events import push_event
 from engine.health import (
     write_error_count,
     write_heartbeat,
@@ -93,6 +94,19 @@ class Poller(ABC):
         logger.error(
             f"Poller {self.api_name!r} error: {exc!r}. Interval → {self._current_interval}s"
         )
+        exc_summary = f"{type(exc).__name__}: {str(exc)[:120]}"
+        if self._circuit.is_open:
+            await push_event(
+                self.redis, "crit",
+                f"circuit opened after {self._consecutive_failures} consecutive failures — {exc_summary}",
+                api=self.api_name,
+            )
+        else:
+            await push_event(
+                self.redis, "warn",
+                f"fetch error #{self._consecutive_failures} — {exc_summary}",
+                api=self.api_name,
+            )
         await asyncio.sleep(self._current_interval)
 
     def stop(self) -> None:

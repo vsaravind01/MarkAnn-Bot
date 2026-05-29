@@ -14,6 +14,7 @@ from database.redis import (
     result_key,
     seconds_until_midnight,
 )
+from engine.events import push_event
 from engine.processor.pdf import extract_pdf_text
 from engine.session import NseSession
 from llm.provider import LLMProvider
@@ -79,6 +80,11 @@ class CorporateAnnouncementsProcessor:
                 f"seq_id={seq_id} attachment is not a PDF "
                 f"(content-type={content_type!r}) — skipping"
             )
+            await push_event(
+                self._redis, "warn",
+                f"skipped seq_id={seq_id} ({symbol}): attachment not a PDF",
+                api="corp_ann",
+            )
             return
         pdf_bytes = response.content
 
@@ -89,6 +95,11 @@ class CorporateAnnouncementsProcessor:
             logger.warning(
                 f"seq_id={seq_id} PDF text truncated "
                 f"({len(text)} → {_MAX_TEXT_CHARS} chars) before LLM"
+            )
+            await push_event(
+                self._redis, "warn",
+                f"seq_id={seq_id} ({symbol}): PDF truncated {len(text):,} → {_MAX_TEXT_CHARS:,} chars",
+                api="corp_ann",
             )
             text = text[:_MAX_TEXT_CHARS]
 
@@ -133,3 +144,8 @@ class CorporateAnnouncementsProcessor:
         await self._redis.publish(alert_channel(symbol), payload_json)
 
         logger.info(f"Processed announcement seq_id={seq_id} symbol={symbol} category={category}")
+        await push_event(
+            self._redis, "ok",
+            f"processed {symbol} ({company}) — {category}",
+            api="corp_ann",
+        )
