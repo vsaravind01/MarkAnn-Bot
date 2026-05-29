@@ -130,7 +130,7 @@ async def _issue_tokens(db: AsyncSession, user: User, settings: Settings) -> tup
     refresh_token = RefreshToken(
         user_id=user.id,
         token_hash=hash_token(raw_refresh),
-        expires_at=datetime.now(UTC) + timedelta(days=settings.refresh_ttl_days),
+        expires_at=(datetime.now(UTC) + timedelta(days=settings.refresh_ttl_days)).replace(tzinfo=None),
     )
     db.add(refresh_token)
     access_token = create_access_token(user.id, user.role, user.email, settings)
