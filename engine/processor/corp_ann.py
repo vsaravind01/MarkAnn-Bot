@@ -4,7 +4,6 @@ import logging
 from concurrent.futures import ProcessPoolExecutor
 from datetime import UTC, datetime
 
-import httpx
 import pytz
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +15,7 @@ from database.redis import (
     seconds_until_midnight,
 )
 from engine.processor.pdf import extract_pdf_text
+from engine.session import NseSession
 from llm.provider import LLMProvider
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ _IST = pytz.timezone("Asia/Kolkata")
 
 def _parse_nse_datetime(dt_str: str) -> datetime:
     naive = datetime.strptime(dt_str, "%d-%b-%Y %H:%M:%S")
-    return _IST.localize(naive)
+    return _IST.localize(naive).replace(tzinfo=None)
 
 
 class CorporateAnnouncementsProcessor:
@@ -45,17 +45,20 @@ class CorporateAnnouncementsProcessor:
         db: AsyncSession,
         llm: LLMProvider,
         process_pool: ProcessPoolExecutor,
+        session: NseSession,
     ) -> None:
         self._redis = redis
         self._db = db
         self._llm = llm
         self._process_pool = process_pool
+        self._session = session
 
     async def process(self, item: dict) -> None:
         seq_id = item.get("seq_id", "")
         symbol = item.get("symbol", "")
 
-        if await self._redis.exists(dedup_key("corp_ann", seq_id)):
+        acquired = await self._redis.set(dedup_key("corp_ann", seq_id), "1", nx=True, ex=172800)
+        if not acquired:
             logger.debug(f"Skipping duplicate seq_id={seq_id}")
             return
 
@@ -64,12 +67,11 @@ class CorporateAnnouncementsProcessor:
             logger.warning(f"No attachment for seq_id={seq_id}, skipping")
             return
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(attachment_url)
-            response.raise_for_status()
-            pdf_bytes = response.content
+        response = await self._session.get(attachment_url)
+        response.raise_for_status()
+        pdf_bytes = response.content
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         text = await loop.run_in_executor(self._process_pool, extract_pdf_text, pdf_bytes)
 
         summary = await self._llm.summarize(text)
@@ -111,6 +113,5 @@ class CorporateAnnouncementsProcessor:
             ex=seconds_until_midnight(),
         )
         await self._redis.publish(alert_channel(symbol), payload_json)
-        await self._redis.set(dedup_key("corp_ann", seq_id), "1", ex=172800)
 
         logger.info(f"Processed announcement seq_id={seq_id} symbol={symbol} category={category}")
