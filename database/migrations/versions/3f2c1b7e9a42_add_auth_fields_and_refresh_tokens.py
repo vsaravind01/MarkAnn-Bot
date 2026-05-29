@@ -29,7 +29,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "users",
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
     )
     op.add_column(
         "users", sa.Column("first_name", sa.String(length=100), nullable=False, server_default="")
@@ -52,7 +52,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
         sa.Column("expires_at", sa.DateTime(), nullable=False),
-        sa.Column("revoked", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+        sa.Column("revoked", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column(
             "created_at",
             sa.DateTime(),
