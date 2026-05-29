@@ -1,0 +1,318 @@
+/* ============================================================================
+   MarkAnn — Colors & Type Foundations
+   Real-time NSE stock-market alert platform for Indian retail traders.
+
+   Dark-first. Built for darkness from the start, not bolted on.
+   Load IBM Plex via Google Fonts (see fonts note in README — net-new brand,
+   so this is the chosen typeface, not an extracted one):
+
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+
+   USAGE
+   -----
+   - Default to dark. Add `data-theme="light"` on <html>/<body> for light desk.
+   - Numbers (prices, volumes, %, counts, IDs, timestamps) ALWAYS use --font-mono
+     with `font-variant-numeric: tabular-nums`. Use the .num utility.
+   - Color carries meaning: --up / --down follow NSE convention (green up, red down).
+     --accent (indigo) is the brand/trust signal and never stands in for market data.
+   ========================================================================== */
+
+:root {
+  /* ---- Type families ---------------------------------------------------- */
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  /* ---- Type scale (compact, instrument-panel density) ------------------- */
+  /* Step naming mirrors role, not just size. */
+  --text-display: 34px;   /* hero figures, single big number */
+  --text-h1: 24px;
+  --text-h2: 19px;
+  --text-h3: 16px;
+  --text-body: 14px;      /* default UI text */
+  --text-sm: 13px;        /* dense rows, table cells */
+  --text-xs: 12px;        /* labels, metadata */
+  --text-2xs: 11px;       /* micro labels, badges, eyebrows */
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.45;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Tracking — tight for the engineered feel; eyebrows get positive tracking */
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-label: 0.04em;
+  --tracking-eyebrow: 0.12em;
+
+  /* ---- Spacing (4px base; density is a feature) ------------------------- */
+  --space-0: 0;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 20px;
+  --space-8: 24px;
+  --space-9: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Compact control heights */
+  --row-xs: 24px;
+  --row-sm: 28px;
+  --row-md: 32px;
+  --row-lg: 38px;
+
+  /* ---- Radii (sharp-ish; precise instrument, not consumer-soft) --------- */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  /* ---- Z layers --------------------------------------------------------- */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-overlay: 800;
+  --z-modal: 900;
+  --z-toast: 1000;
+
+  /* ---- Motion (functional, not decorative) ------------------------------ */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);     /* decisive, instrument-grade */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-instant: 0ms;     /* status flips: no animation */
+  --dur-fast: 120ms;      /* hovers, presses */
+  --dur-base: 180ms;      /* alert slide-in, panel reveal */
+  --dur-slow: 260ms;
+}
+
+/* ===========================================================================
+   DARK THEME (default / soul of the product)
+   Deep, blue-tinted near-black built from layered surfaces.
+   =========================================================================== */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Backgrounds / surfaces — each step is a real plane, lit from above */
+  --bg-base:    #080B11;   /* deepest void behind everything */
+  --bg-canvas:  #0A0E15;   /* app canvas */
+  --surface-1:  #0F141D;   /* panels, cards */
+  --surface-2:  #141A25;   /* raised / nested panels */
+  --surface-3:  #1A212E;   /* popovers, menus, inputs on hover */
+  --surface-inset: #0B0F16; /* wells, code, table headers */
+
+  /* Hairline borders define structure on dark */
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong:  rgba(255, 255, 255, 0.16);
+
+  /* Foreground text */
+  --fg-1: #E8ECF3;   /* primary */
+  --fg-2: #9BA6B6;   /* secondary / labels */
+  --fg-3: #66708199; /* placeholder via opacity below; see --fg-muted */
+  --fg-muted: #5C6676; /* tertiary, disabled, meta */
+  --fg-inverse: #0A0E15;
+
+  /* Brand accent — cool indigo. Trust + precision. NOT a market color. */
+  --accent:        #4F7CFF;
+  --accent-hover:  #6A91FF;
+  --accent-press:  #3A66E6;
+  --accent-fg:     #FFFFFF;        /* text on accent fill */
+  --accent-soft:   rgba(79, 124, 255, 0.14);   /* tint bg */
+  --accent-border: rgba(79, 124, 255, 0.40);
+  --accent-glow:   rgba(79, 124, 255, 0.35);   /* focus ring */
+
+  /* AI / analyst-notes affordance — a calmer violet-indigo sibling of accent */
+  --ai:        #8E7BFF;
+  --ai-soft:   rgba(142, 123, 255, 0.13);
+  --ai-border: rgba(142, 123, 255, 0.34);
+
+  /* Market semantics — NSE convention (green up, red down) */
+  --up:        #16C784;   /* gains */
+  --up-strong: #2EE6A0;   /* emphasised gain */
+  --up-soft:   rgba(22, 199, 132, 0.14);
+  --up-border: rgba(22, 199, 132, 0.38);
+
+  --down:        #F6465D; /* losses */
+  --down-strong: #FF6478;
+  --down-soft:   rgba(246, 70, 93, 0.14);
+  --down-border: rgba(246, 70, 93, 0.38);
+
+  --flat: #9BA6B6;        /* unchanged */
+
+  /* Operator / system-state semantics (control room) */
+  --ok:        #16C784;   /* running / nominal — resting state */
+  --ok-soft:   rgba(22, 199, 132, 0.13);
+  --warn:      #F5A524;   /* tripped soon / watchdog quiet / degraded */
+  --warn-strong: #FFB938;
+  --warn-soft: rgba(245, 165, 36, 0.14);
+  --warn-border: rgba(245, 165, 36, 0.40);
+  --crit:      #F6465D;   /* alarm — circuit tripped / silence / down */
+  --crit-soft: rgba(246, 70, 93, 0.14);
+  --crit-border: rgba(246, 70, 93, 0.42);
+  --paused:    #7E8AA0;   /* paused / idle — deliberately neutral */
+  --paused-soft: rgba(126, 138, 160, 0.14);
+
+  /* Focus ring */
+  --ring: 0 0 0 1px var(--bg-canvas), 0 0 0 3px var(--accent-glow);
+
+  /* Elevation — on dark, depth comes from border + faint shadow, not big drops */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-pop: 0 8px 28px rgba(0, 0, 0, 0.60);
+
+  /* Data-grid zebra / hover */
+  --row-hover: rgba(255, 255, 255, 0.035);
+  --row-stripe: rgba(255, 255, 255, 0.018);
+  --row-selected: rgba(79, 124, 255, 0.12);
+}
+
+/* ===========================================================================
+   LIGHT THEME (secondary — a well-lit trading desk, not a banking app)
+   Warm-neutral, considered, equal in care to dark.
+   =========================================================================== */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-base:    #EEF0F4;
+  --bg-canvas:  #F4F5F8;
+  --surface-1:  #FFFFFF;
+  --surface-2:  #FBFCFE;
+  --surface-3:  #FFFFFF;
+  --surface-inset: #F0F2F6;
+
+  --border-subtle:  rgba(16, 22, 38, 0.07);
+  --border-default: rgba(16, 22, 38, 0.12);
+  --border-strong:  rgba(16, 22, 38, 0.20);
+
+  --fg-1: #0E1420;
+  --fg-2: #4A5567;
+  --fg-muted: #8A93A3;
+  --fg-inverse: #FFFFFF;
+
+  --accent:        #2F62F2;
+  --accent-hover:  #1F50DE;
+  --accent-press:  #1A45C2;
+  --accent-fg:     #FFFFFF;
+  --accent-soft:   rgba(47, 98, 242, 0.10);
+  --accent-border: rgba(47, 98, 242, 0.32);
+  --accent-glow:   rgba(47, 98, 242, 0.30);
+
+  --ai:        #6D52F0;
+  --ai-soft:   rgba(109, 82, 240, 0.09);
+  --ai-border: rgba(109, 82, 240, 0.28);
+
+  --up:        #0F9D58;
+  --up-strong: #0B8A4D;
+  --up-soft:   rgba(15, 157, 88, 0.10);
+  --up-border: rgba(15, 157, 88, 0.34);
+
+  --down:        #E03145;
+  --down-strong: #C42537;
+  --down-soft:   rgba(224, 49, 69, 0.10);
+  --down-border: rgba(224, 49, 69, 0.34);
+
+  --flat: #6A7488;
+
+  --ok:        #0F9D58;
+  --ok-soft:   rgba(15, 157, 88, 0.10);
+  --warn:      #C9810A;
+  --warn-strong: #A86A06;
+  --warn-soft: rgba(201, 129, 10, 0.12);
+  --warn-border: rgba(201, 129, 10, 0.34);
+  --crit:      #E03145;
+  --crit-soft: rgba(224, 49, 69, 0.10);
+  --crit-border: rgba(224, 49, 69, 0.36);
+  --paused:    #6A7488;
+  --paused-soft: rgba(106, 116, 136, 0.12);
+
+  --ring: 0 0 0 1px var(--bg-canvas), 0 0 0 3px var(--accent-glow);
+
+  --shadow-sm: 0 1px 2px rgba(16, 22, 38, 0.08);
+  --shadow-md: 0 4px 14px rgba(16, 22, 38, 0.10);
+  --shadow-lg: 0 16px 40px rgba(16, 22, 38, 0.14);
+  --shadow-pop: 0 8px 28px rgba(16, 22, 38, 0.16);
+
+  --row-hover: rgba(16, 22, 38, 0.035);
+  --row-stripe: rgba(16, 22, 38, 0.018);
+  --row-selected: rgba(47, 98, 242, 0.09);
+}
+
+/* ===========================================================================
+   SEMANTIC ELEMENT STYLES — apply directly to tags or via class
+   =========================================================================== */
+.ds-scope, .ds-body {
+  background: var(--bg-canvas);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  font-weight: var(--weight-regular);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Headings / prose roles */
+.h-display {
+  font-family: var(--font-sans);
+  font-size: var(--text-display);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+}
+.h1 { font-size: var(--text-h1); font-weight: var(--weight-semibold); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); color: var(--fg-1); }
+.h2 { font-size: var(--text-h2); font-weight: var(--weight-semibold); line-height: var(--leading-snug); letter-spacing: var(--tracking-tight); color: var(--fg-1); }
+.h3 { font-size: var(--text-h3); font-weight: var(--weight-semibold); line-height: var(--leading-snug); color: var(--fg-1); }
+.p  { font-size: var(--text-body); font-weight: var(--weight-regular); line-height: var(--leading-normal); color: var(--fg-2); }
+.small { font-size: var(--text-sm); color: var(--fg-2); }
+
+/* Label / eyebrow — uppercase, tracked, for panel headers and table columns */
+.label {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  color: var(--fg-2);
+}
+.eyebrow {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+/* THE number utility — every figure on screen */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: 0;
+}
+.num-lg { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-display); font-weight: var(--weight-medium); letter-spacing: -0.01em; }
+
+/* Directional number coloring */
+.is-up   { color: var(--up); }
+.is-down { color: var(--down); }
+.is-flat { color: var(--flat); }
+
+/* Inline code */
+.code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+  color: var(--fg-1);
+}

@@ -1,0 +1,282 @@
+/* KPI row */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 0 0 22px;
+}
+
+.kpi {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 13px;
+}
+
+.kpi .l {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kpi .v {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-top: 7px;
+}
+
+.kpi .d {
+  font-size: 11px;
+  color: var(--fg-muted);
+  margin-top: 3px;
+}
+
+.sec-label-main {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin: 4px 0 10px;
+}
+
+/* Component health grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+}
+
+.comp {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 13px;
+  transition: border-color var(--dur-fast);
+}
+
+.comp.crit {
+  border-color: var(--crit-border);
+  background: linear-gradient(0deg, var(--crit-soft), var(--crit-soft)), var(--surface-1);
+}
+
+.comp.warn {
+  border-color: var(--warn-border);
+}
+
+.comp-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 11px;
+}
+
+.comp-ico {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--fg-2);
+  flex: none;
+}
+
+.comp.crit .comp-ico {
+  background: var(--crit-soft);
+  color: var(--crit);
+}
+
+.comp.warn .comp-ico {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.comp-name {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.comp-type {
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  padding: 11px 0;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 11px;
+}
+
+.metric .ml {
+  font-size: 10.5px;
+  color: var(--fg-muted);
+  letter-spacing: 0.03em;
+}
+
+.metric .mv {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin-top: 1px;
+}
+
+.metric .mv.alarm,
+.metric .mv.crit {
+  color: var(--crit);
+}
+
+.metric .mv.warn {
+  color: var(--warn);
+}
+
+.comp-actions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.pool {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 0;
+  border-top: 1px solid var(--border-subtle);
+  margin-bottom: 11px;
+}
+
+.pool .lab {
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.stepper button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--fg-1);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.stepper button:hover {
+  background: var(--surface-3);
+}
+
+.stepper .val {
+  min-width: 38px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Event log */
+.log {
+  background: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.log-row {
+  display: grid;
+  grid-template-columns: 88px 60px 1fr;
+  gap: 12px;
+  padding: 6px 13px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+  align-items: baseline;
+}
+
+.log-row:last-child {
+  border-bottom: 0;
+}
+
+.log-row:hover {
+  background: var(--row-hover);
+}
+
+.log .ts {
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.log .lvl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lvl.info {
+  color: var(--fg-2);
+}
+
+.lvl.warn {
+  color: var(--warn);
+}
+
+.lvl.crit {
+  color: var(--crit);
+}
+
+.lvl.ok {
+  color: var(--ok);
+}
+
+.log .msg {
+  color: var(--fg-1);
+}
+
+/* Pollers / pools table */
+.engine-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.engine-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.engine-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.engine-table tr:last-child td {
+  border-bottom: none;
+}
+
+.engine-table .actions {
+  display: flex;
+  gap: 6px;
+}
