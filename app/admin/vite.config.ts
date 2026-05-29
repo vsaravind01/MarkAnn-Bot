@@ -9,10 +9,11 @@ export default defineConfig({
     globals: true,
   },
   server: {
+    host: true,
     port: 5173,
     proxy: {
-      '/auth': 'http://localhost:9150',
-      '/admin': 'http://localhost:9150',
+      '/auth': process.env.VITE_GATEWAY_URL ?? 'http://localhost:9150',
+      '/admin': process.env.VITE_GATEWAY_URL ?? 'http://localhost:9150',
     },
   },
 })

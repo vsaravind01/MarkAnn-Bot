@@ -1,0 +1,32 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Database files (Docker uses PostgreSQL, not SQLite)
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Frontend build artefacts (not needed in the Python image)
+app/admin/node_modules/
+app/admin/dist/
+app/admin/tsconfig.tsbuildinfo
+
+# Dev logs
+scripts/logs/
+
+# Local test / dev artefacts
+markann.db
+.DS_Store
+
+# Superpowers / Claude artefacts (gitignored locally, double-safe here)
+docs/superpowers/
+CLAUDE.md

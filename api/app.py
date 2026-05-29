@@ -29,6 +29,11 @@ def create_app(
     app.state.db_factory = db_factory
     app.state.supervisor = supervisor_override
     app.state.pools = pools_override or {}
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
     app.include_router(pollers_router)
     app.include_router(pools_router)
     app.include_router(watchlist_router)

@@ -47,6 +47,13 @@ PIDS+=($!)
 NAMES+=("gateway")
 echo -e "  ${GRN}↑${RST} gateway   :${BLD}9150${RST}  →  scripts/logs/gateway.log"
 
+# ── Engine ───────────────────────────────────────────────────────────────────
+uv run python -m engine.main \
+  > "$LOG_DIR/engine.log" 2>&1 &
+PIDS+=($!)
+NAMES+=("engine")
+echo -e "  ${GRN}↑${RST} engine            →  scripts/logs/engine.log"
+
 # ── Frontend :5173 ───────────────────────────────────────────────────────────
 (cd "$PROJECT_ROOT/app/admin" && npm run dev) \
   > "$LOG_DIR/frontend.log" 2>&1 &
