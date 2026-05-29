@@ -20,6 +20,10 @@ from llm.provider import LLMProvider
 
 logger = logging.getLogger(__name__)
 
+# Gemini's limit is 262 144 tokens; ~4 chars/token gives ~1 M chars.
+# We cap well below that to leave headroom for prompt overhead.
+_MAX_TEXT_CHARS = 200_000
+
 ANNOUNCEMENT_CATEGORIES = [
     "acquisition",
     "orders_or_contracts",
@@ -69,10 +73,24 @@ class CorporateAnnouncementsProcessor:
 
         response = await self._session.get(attachment_url)
         response.raise_for_status()
+        content_type = response.headers.get("content-type", "")
+        if "application/pdf" not in content_type:
+            logger.warning(
+                f"seq_id={seq_id} attachment is not a PDF "
+                f"(content-type={content_type!r}) — skipping"
+            )
+            return
         pdf_bytes = response.content
 
         loop = asyncio.get_running_loop()
         text = await loop.run_in_executor(self._process_pool, extract_pdf_text, pdf_bytes)
+
+        if len(text) > _MAX_TEXT_CHARS:
+            logger.warning(
+                f"seq_id={seq_id} PDF text truncated "
+                f"({len(text)} → {_MAX_TEXT_CHARS} chars) before LLM"
+            )
+            text = text[:_MAX_TEXT_CHARS]
 
         summary = await self._llm.summarize(text)
         category = await self._llm.classify(text, ANNOUNCEMENT_CATEGORIES)
