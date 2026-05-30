@@ -10,7 +10,7 @@ Ground truth derived from:
   Key facts that any faithful summary must mention:
     - "railtel"           (the disclosing company)
     - "order"             (the nature of the event)
-    - at least one of:    "security" | "police" | "ap" | "integrated"
+    - at least one of:    "security" | "police" | "integrated" | "andhra pradesh"
                           (specifics of the contract)
 
 Run:
@@ -43,6 +43,11 @@ _NSE_HEADERS = {
     ),
     "Referer": "https://www.nseindia.com/",
 }
+_RAILTEL_SYMBOL = "RAILTEL"
+_RAILTEL_COMPANY = "RailTel Corporation of India Ltd"
+_RAILTEL_ANNOUNCEMENT_TEXT = (
+    "NSE corporate disclosure metadata for attached filing PDF."
+)
 
 
 def _make_provider() -> GeminiProvider:
@@ -63,12 +68,35 @@ async def _fetch_pdf_text(url: str) -> str:
     return text
 
 
+async def _analyze_railtel_text(provider: GeminiProvider, text: str):
+    return await provider.analyze_text_announcement(
+        text=text,
+        categories=ANNOUNCEMENT_CATEGORIES,
+        symbol=_RAILTEL_SYMBOL,
+        company=_RAILTEL_COMPANY,
+        announcement_text=_RAILTEL_ANNOUNCEMENT_TEXT,
+    )
+
+
+@pytest.fixture(scope="module")
+def gemini_provider() -> GeminiProvider:
+    return _make_provider()
+
+
+@pytest.fixture(scope="module")
+async def railtel_pdf_text() -> str:
+    return await _fetch_pdf_text(_RAILTEL_PDF_URL)
+
+
+@pytest.fixture(scope="module")
+async def railtel_analysis(gemini_provider: GeminiProvider, railtel_pdf_text: str):
+    return await _analyze_railtel_text(gemini_provider, railtel_pdf_text)
+
+
 @pytest.mark.integration
-async def test_gemini_classifies_railtel_order():
+async def test_gemini_classifies_railtel_order(railtel_analysis):
     """Classification must resolve to 'orders_or_contracts' for a clear work-order disclosure."""
-    provider = _make_provider()
-    text = await _fetch_pdf_text(_RAILTEL_PDF_URL)
-    category = await provider.classify(text, ANNOUNCEMENT_CATEGORIES)
+    category = railtel_analysis.category
     assert category == "orders_or_contracts", (
         f"Expected 'orders_or_contracts', got {category!r}. "
         "Check model output or prompt for regressions."
@@ -76,11 +104,9 @@ async def test_gemini_classifies_railtel_order():
 
 
 @pytest.mark.integration
-async def test_gemini_summarises_railtel_order():
+async def test_gemini_summarises_railtel_order(railtel_analysis):
     """Summary must be non-empty and contain the company name, the event type, and contract specifics."""
-    provider = _make_provider()
-    text = await _fetch_pdf_text(_RAILTEL_PDF_URL)
-    summary = await provider.summarize(text)
+    summary = railtel_analysis.summary
 
     assert summary.strip(), "Summary must not be empty"
 
@@ -92,20 +118,18 @@ async def test_gemini_summarises_railtel_order():
     assert "order" in lower, (
         f"Summary missing event type 'order': {summary!r}"
     )
-    assert any(term in lower for term in ("security", "police", "ap", "integrated")), (
-        f"Summary missing contract specifics (security/police/AP/integrated): {summary!r}"
+    assert any(term in lower for term in ("security", "police", "integrated", "andhra pradesh")), (
+        f"Summary missing contract specifics (security/police/integrated/Andhra Pradesh): {summary!r}"
     )
 
 
 @pytest.mark.integration
-async def test_gemini_summarise_and_classify_consistent():
-    """Both calls on the same document must agree: an order summary implies orders_or_contracts."""
-    provider = _make_provider()
-    text = await _fetch_pdf_text(_RAILTEL_PDF_URL)
+async def test_gemini_summarise_and_classify_consistent(railtel_analysis):
+    """Single analysis output must be self-consistent: order summary implies orders_or_contracts."""
+    summary = railtel_analysis.summary
+    category = railtel_analysis.category
 
-    summary = await provider.summarize(text)
-    category = await provider.classify(text, ANNOUNCEMENT_CATEGORIES)
-
+    assert railtel_analysis.need_more_pages is None
     assert category == "orders_or_contracts"
     assert "order" in summary.lower(), (
         f"Category is orders_or_contracts but 'order' absent from summary: {summary!r}"
