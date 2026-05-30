@@ -35,9 +35,7 @@ class Supervisor:
         if task.cancelled():
             return
         exc = task.exception()
-        logger.warning(
-            f"Supervisor: {name!r} ended (exc={exc!r}), restarting in {self._restart_delay}s"
-        )
+        logger.warning(f"Supervisor: {name!r} ended (exc={exc!r}), restarting in {self._restart_delay}s")
         loop = asyncio.get_running_loop()
         loop.call_later(self._restart_delay, lambda: asyncio.create_task(self.start(name)))
 
