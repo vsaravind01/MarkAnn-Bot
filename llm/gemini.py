@@ -1,6 +1,6 @@
 import os
 
-import google.generativeai as genai
+from google import genai
 
 _SUMMARIZE_PROMPT = (
     "Summarise the following Indian stock market corporate announcement in 2-3 concise "
@@ -13,19 +13,21 @@ _CLASSIFY_PROMPT = (
 
 
 class GeminiProvider:
-    def __init__(self, api_key: str | None = None, model: str = "gemini-1.5-pro"):
-        genai.configure(api_key=api_key or os.environ["GEMINI_API_KEY"])
-        self._model = genai.GenerativeModel(model)
+    def __init__(self, api_key: str | None = None, model: str = "gemma-4-31b-it"):
+        self._client = genai.Client(api_key=api_key or os.environ["GEMINI_API_KEY"])
+        self._model = model
 
     async def summarize(self, text: str) -> str:
-        response = await self._model.generate_content_async(
-            _SUMMARIZE_PROMPT.format(text=text)
+        response = await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=_SUMMARIZE_PROMPT.format(text=text),
         )
         return response.text.strip()
 
     async def classify(self, text: str, categories: list[str]) -> str:
         cats = ", ".join(categories)
-        response = await self._model.generate_content_async(
-            _CLASSIFY_PROMPT.format(categories=cats, text=text)
+        response = await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=_CLASSIFY_PROMPT.format(categories=cats, text=text),
         )
         return response.text.strip()

@@ -1,140 +1,158 @@
 <div align="center">
-    <img src="assets/avatar.png" alt="Avatar" width="200" height="200" style="border-radius: 10px; border: 3px solid greenyellow;display: block">
-    <h1 style="color: limegreen">MarkAnn Bot</h1>
-    <p>
-        An AI telegram bot that provides real-time press releases from the companies
-        listed on the Bombay Stock Exchange (BSE).
-    </p>
-    <br/>
-    <a href="https://t.me/MarkAnn_Bot" target="_blank">
-        <img src="https://img.shields.io/badge/MarkAnn_Bot-Telegram-blue?logo=telegram" alt="Telegram">
-    </a>
+  <img src="assets/avatar.png" alt="MarkAnn" width="180" height="180" style="border-radius: 12px;">
+  <h1>MarkAnn</h1>
+  <p>Real-time market alert platform for Indian stock markets (NSE)</p>
 </div>
 
-# Table of Contents
+---
 
-- [Introduction](#introduction)
-- [Features](#features)
-  * [Real-time Press Releases](#real-time-press-releases)
-- [Installation](#installation)
-  * [Prerequisites](#prerequisites)
-  * [Setup](#setup)
-  * [Docker](#docker)
-- [Contributing](#contributing)
-- [License](#license)
+MarkAnn is an **API-first** alert platform that monitors NSE data streams, runs detection and AI analysis, and delivers alerts to users through configurable channels. The FastAPI backend is the single source of truth; a web dashboard is the primary user interface; delivery adapters (Telegram, WebSocket, etc.) are pluggable consumers of the alert engine.
 
-# Introduction
+## Alert types
 
-MarkAnn Bot is a Telegram bot that provides real-time press releases 
-from the companies listed on the Bombay Stock Exchange (BSE). The bot 
-monitors the BSE API for new press releases and sends them to the
-subscribed users on Telegram.
+| Status | Alert |
+|---|---|
+| ✅ Live | AI-powered corporate announcements — fetches NSE press releases, extracts PDF text, summarises and classifies via LLM, pushes to subscribers |
+| 🔜 Planned | Volume spike detection |
+| 🔜 Planned | Price spike detection |
+| 🔜 Planned | EMA crossover detection |
+| 🔜 Planned | Resistance / Support level crossing |
+| 🔜 Planned | Bollinger Band crossing |
+| 🔜 Planned | Volume Point of Control (VPoC) spike |
 
-# Features
+## Architecture
 
-## Real-time Press Releases
+```
+[NSE API]
+    │  polls every N seconds (default 5s)
+    ▼
+[Alert Engine]  ──  asyncio Queue per data stream
+    │               ConsumerPool (configurable workers)
+    │               ProcessPoolExecutor (PDF extraction)
+    │               LLM provider (summarise + classify)
+    │               PostgreSQL  (permanent store)
+    │               Redis       (dedup · daily cache · pub/sub)
+    ▼
+[FastAPI]       ──  REST  (config, watchlist, admin)
+    │               WebSocket  (live alert stream)
+    ▼
+[Delivery adapters]  ──  Telegram bot
+                         WebSocket client (web dashboard)
+                         …future: email, SMS
+```
 
-There are very few platforms that provide real-time information about
-the listed companies in India. And out of them, there is hardly any
-platform that provides quick and quality information. MarkAnn Bot
-aims to fill this gap by providing real-time press releases from the
-listed companies, and it goes a step further by summarizing the press
-release document using Generative-AI models. This way, the users can
-get a quick overview of the press release without having to read the
-entire document.
+**Engine internals**
 
-The documents are classified into different categories
-* Acquisition
-* Orders or Contracts
-* New Product Launch
-* New Partnership or Collaboration
+- `Supervisor` — monitors asyncio tasks and auto-restarts pollers on crash
+- `Watchdog` — checks Redis heartbeats every 30 s; logs a silent-failure alert when a poller stops producing data
+- `CircuitBreaker` — backs off after repeated NSE API failures (CLOSED → OPEN → HALF_OPEN)
+- `NseSession` — persistent `httpx.AsyncClient` with NSE cookie management
 
-The bot also provides a link to the original document, the stock's page
-on the BSE website, and a link to Google search results for the company.
-The provides the users with all the necessary information to make an
-informed and quick decision.
+## Tech stack
 
-# Features in Development
-
-- [ ] Volume spike detection
-- [ ] Price spike detection
-- [ ] EMA crossover detection
-- [ ] Resistance and Support level crossing detection
-- [ ] Bollinger Band crossing detection
-- [ ] Volume Point of Control (VPoC) spike detection
-
-# Installation
+| Layer | Technology |
+|---|---|
+| Language | Python 3.13 |
+| Package manager | [UV](https://docs.astral.sh/uv/) |
+| API | FastAPI + Uvicorn |
+| Database | SQLAlchemy 2 (async) + Alembic + PostgreSQL |
+| Cache / pub-sub | Redis |
+| PDF extraction | PyMuPDF |
+| LLM providers | OpenAI · Anthropic · Gemini (switchable via env var) |
+| Linter / formatter | Ruff |
 
 ## Prerequisites
 
-- Python 3.10 or higher (Recommended version: 3.12)
-- Qdrant DB credentials
-- Telegram Bot Token
-- Cohere API Key
-- Docker & Docker Compose (Optional)
+- Python 3.13
+- PostgreSQL
+- Redis
+- API key for one LLM provider (OpenAI, Anthropic, or Gemini)
 
 ## Setup
 
-1. **Clone the repository**
-    ```bash
-    git clone https://github.com/vsaravind01/MarkAnn-Bot.git
-    cd MarkAnn-Bot
-    ```
-2. **Install the dependencies (Recommended: Create a virtual environment)**
-    ```bash
-    pip install -r requirements.txt
-    ```
-3. **Add the required environment variables to `./scripts/start_telegram_server.sh`**
-4. **Give execute permission to the script**
-    ```bash
-    chmod +x ./scripts/start_telegram_server.sh
-    ```
-5. **Start the Telegram server**
-    ```bash
-    ./scripts/start_telegram_server.sh
-    ```
+```bash
+git clone https://github.com/vsaravind01/MarkAnn.git
+cd MarkAnn
+uv sync
+```
 
-Alternatively, you can build and run the Docker container.
+Copy `.env.example` (or create `.env`) and fill in the required values:
 
-## Docker
+```bash
+# Database
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost/markann
 
-1. **Build the Docker image**
-    ```bash
-    docker build -t markann-bot:latest -f ./docker/bot/Dockerfile .
-    ```
-2. **Set the environment variables in the `docker-compose.yml` file**
-3. **Run the Docker container**
-    ```bash
-    docker-compose -f ./docker/bot/docker-compose.yml up -d
-    ```
+# Redis
+REDIS_URL=redis://localhost:6379/0
 
-> [!NOTE]
-> The logs are stored in the `./logs` directory.
-> The logs is linked to the container's `/app/bot/logs` directory.
-> The user.db file is stored in `./logs/user.db` directory.
+# LLM — set LLM_PROVIDER to one of: openai | anthropic | gemini
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+# ANTHROPIC_API_KEY=ant-...
+# GEMINI_API_KEY=gem-...
 
-# Contributing
+# Engine tuning (optional)
+POLL_INTERVAL=5                   # seconds between NSE polls
+POLLER_SILENCE_THRESHOLD=600      # seconds before watchdog logs a silent-failure alert
+CONSUMER_POOL_SIZE_CORP_ANN=8     # initial worker count (overridden by DB config at runtime)
+```
 
-Contributions are welcome from everyone. Whether you're a seasoned developer 
-or just getting started with open-source, your contributions are invaluable 
-to us. Together, we can create an amazing tool that keeps investors informed 
-and helps them make better decisions.
+## Running
 
-Here are a few do's and don'ts that you should follow while contributing to this project.
+**Database migrations** (run once, then on each schema change):
 
-- **Do's**
-  * Raise an issue before starting to work on a new feature or any major bug fix.
-  * Use [Black](https://github.com/psf/black) for code formatting.
-  * Always create a new branch for your changes.
-  * Always add docstrings to the functions and classes. (P.S. Grammar doesn't matter, but clarity does.)
-  * Use [Google Style Docstrings](https://google.github.io/styleguide/pyguide.html) for documentation.
-  * If you are new to open-source, you can start by fixing the issues labeled as `good first issue`.
-- **Don'ts**
-  * Do not add any new dependencies without discussing with the maintainers.
-  * Do not add any new features without discussing with the maintainers.
-  * Do not share any sensitive information such as API keys, passwords, etc., in the issues or PRs.
+```bash
+alembic -c database/migrations/alembic.ini upgrade head
+```
 
-# License
+**Alert engine:**
 
-This project is licensed under the GNU General Public License v2.0.
-For more information, please refer to the [LICENSE](LICENSE) file.
+```bash
+uv run python -m engine.main
+```
+
+**API server:**
+
+```bash
+uv run uvicorn api.app:app --reload
+```
+
+## API overview
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/admin/pollers` | List all pollers and their health |
+| `GET` | `/admin/pollers/{api}` | Single poller health |
+| `POST` | `/admin/pollers/{api}/pause` | Pause a poller |
+| `POST` | `/admin/pollers/{api}/resume` | Resume a paused poller |
+| `POST` | `/admin/pollers/{api}/restart` | Force-restart a poller |
+| `GET` | `/admin/pools/{api}` | Get consumer pool size |
+| `PATCH` | `/admin/pools/{api}` | Resize consumer pool at runtime |
+| `POST` | `/api/v1/watchlist` | Subscribe a user to a symbol |
+| `DELETE` | `/api/v1/watchlist` | Unsubscribe a user from a symbol |
+
+## Testing
+
+```bash
+uv run pytest tests/ -v
+```
+
+The test suite uses `fakeredis` and an in-memory SQLite database — no running Redis or PostgreSQL required.
+
+## Creating a new migration
+
+```bash
+alembic -c database/migrations/alembic.ini revision --autogenerate -m "description"
+alembic -c database/migrations/alembic.ini upgrade head
+```
+
+## Contributing
+
+- Open an issue before starting work on a new feature or significant bug fix.
+- Follow [Google Style Docstrings](https://google.github.io/styleguide/pyguide.html).
+- Run `uv run ruff check . && uv run ruff format .` before committing.
+- Keep delivery adapters as separate services — do not embed them in the engine or API.
+
+## License
+
+GNU General Public License v2.0 — see [LICENSE](LICENSE).

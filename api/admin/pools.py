@@ -33,6 +33,8 @@ async def update_pool_size(api: str, body: PoolSizeUpdate, request: Request):
         raise HTTPException(status_code=404, detail=f"Pool {api!r} not found")
     if body.size < 1:
         raise HTTPException(status_code=422, detail="size must be >= 1")
+    if body.size > 64:
+        raise HTTPException(status_code=422, detail="size must be <= 64")
 
     async with request.app.state.db_factory() as session:
         config = await session.get(EngineConfig, f"pool_size:{api}")

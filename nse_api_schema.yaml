@@ -1,0 +1,426 @@
+provider: nse
+v1:
+    corporate_announcements:
+        base: https://www.nseindia.com/api/corporate-announcements
+        args:
+            index:
+                - equities
+                - mf
+                - sme
+                - debt
+                - sse
+            from_date:
+                example: 26-05-2026
+            to_date:
+                example: 27-05-2026
+            symbol:
+                example: INFY
+                hint: Valid NSE symbols only
+            fo_sec:
+                example: true
+                type: boolean
+                hint: true | false
+                description: If set to true, returns only FO securities; This is kind of a filter
+        example:
+            request: https://www.nseindia.com/api/corporate-announcements?index=equities&from_date=26-05-2026&to_date=27-05-2026
+            response: |
+                [
+                {
+                "symbol": "MFML",
+                "desc": "General Updates",
+                "dt": "27052026235528",
+                "attchmntFile": "https://nsearchives.nseindia.com/corporate/MFML2_27052026235521_Appointment_of_Auditors.pdf",
+                "sm_name": "Mahalaxmi Fabric Mills Limited",
+                "sm_isin": "INE0US801024",
+                "an_dt": "27-May-2026 23:55:28",
+                "sort_date": "2026-05-27 23:55:28",
+                "seq_id": "106644730",
+                "smIndustry": null,
+                "orgid": null,
+                "attchmntText": "Mahalaxmi Fabric Mills Limited has informed the Exchange about General Updates",
+                "bflag": null,
+                "old_new": null,
+                "csvName": null,
+                "exchdisstime": "27-May-2026 23:55:29",
+                "difference": "00:00:01",
+                "fileSize": "10.24 MB",
+                "attFileSize": "10.24 MB",
+                "hasXbrl": true
+                },
+                {
+                "symbol": "MFML",
+                "desc": "Outcome of Board Meeting",
+                "dt": "27052026235420",
+                "attchmntFile": "https://nsearchives.nseindia.com/corporate/MFML2_27052026234933_MFMLOUTCOME.pdf",
+                "sm_name": "Mahalaxmi Fabric Mills Limited",
+                "sm_isin": "INE0US801024",
+                "an_dt": "27-May-2026 23:54:20",
+                "sort_date": "2026-05-27 23:54:20",
+                "seq_id": "106644728",
+                "smIndustry": null,
+                "orgid": null,
+                "attchmntText": "Mahalaxmi Fabric Mills Limited has submitted to the Exchange, the financial results for the period ended March 31, 2026.",
+                "bflag": null,
+                "old_new": null,
+                "csvName": null,
+                "exchdisstime": "27-May-2026 23:54:21",
+                "difference": "00:00:01",
+                "fileSize": "16.18 MB",
+                "attFileSize": "16.18 MB",
+                "hasXbrl": true
+                },
+                ...
+                ]
+
+    search_equities:
+        base: https://www.nseindia.com/api/smart-search/eqEtf
+        args:
+            q:
+                example: Infosys
+                description: Fuzzy search for equities by name (supports case insensitive search)
+        example:
+            request: https://www.nseindia.com/api/smart-search/eqEtf?q=Inf
+            response: |
+                [
+                {
+                "change": 0,
+                "companyName": "Infosys Limited",
+                "lastPrice": 0,
+                "pChange": 0,
+                "segment": "in equity",
+                "series": "EQ",
+                "symbol": "INFY",
+                "url": "/get-quotes/equity?symbol=INFY",
+                "webUrl": "/get-quote/equity/INFY/Infosys-Limited"
+                },
+                {
+                "change": 0,
+                "companyName": "Info Edge (India) Limited",
+                "lastPrice": 0,
+                "pChange": 0,
+                "segment": "in equity",
+                "series": "EQ",
+                "symbol": "NAUKRI",
+                "url": "/get-quotes/equity?symbol=NAUKRI",
+                "webUrl": "/get-quote/equity/NAUKRI/Info-Edge-(India)-Limited"
+                },
+                ...
+                ]
+
+    insider_trading:
+        base: https://www.nseindia.com/api/corporates-pit-gg
+        args:
+            index:
+                - equities
+            hint: Only equities are important here
+            from_date:
+                example: 26-05-2026
+                type: string
+            to_date:
+                example: 27-05-2026
+                type: string
+            symbol:
+                example: INFY
+            example:
+                request: https://www.nseindia.com/api/corporates-pit-gg?index=equities&from_date=27-05-2026&to_date=28-05-2026
+                response: |
+                    {
+                    "data": [
+                    {
+                    "appId": "462",
+                    "prevAppId": null,
+                    "symbol": "JUBLFOOD",
+                    "companyName": "JUBILANT FOODWORKS LIMITED",
+                    "typeOfSubmission": "Original",
+                    "regulation": "Regulation 7 (2)",
+                    "xmlFileName": "https://nsearchives.nseindia.com/corporate/xbrl/TrustTransfer_IT_WebXMLFile_20260528_100451065.xml",
+                    "ixbrl": "https://nsearchives.nseindia.com/corporate/ixbrl/IT_20260528_100451_WEB.html",
+                    "broadcastDateTime": "28-May-2026 10:04:51",
+                    "xbrlFileSize": "5.42 KB",
+                    "ixbrlFileSize": "23.14 KB",
+                    "revisionRemark": null,
+                    "exchdisstime": "28-May-2026 10:04:52",
+                    "diff": "00:00:00"
+                    },
+                    {
+                    "appId": "450",
+                    "prevAppId": null,
+                    "symbol": "SASKEN",
+                    "companyName": "Sasken Technologies Limited",
+                    "typeOfSubmission": "Original",
+                    "regulation": "Regulation 7 (2)",
+                    "xmlFileName": "https://nsearchives.nseindia.com/corporate/xbrl/PIT_532663_275202622211_IT_WebXMLFile_20260527_220248304.xml",
+                    "ixbrl": "https://nsearchives.nseindia.com/corporate/ixbrl/IT_20260527_220248_WEB.html",
+                    "broadcastDateTime": "27-May-2026 22:02:48",
+                    "xbrlFileSize": "10.52 KB",
+                    "ixbrlFileSize": "34.00 KB",
+                    "revisionRemark": null,
+                    "exchdisstime": "27-May-2026 22:02:50",
+                    "diff": "00:00:02"
+                    },
+                    ...
+                    ]
+                    }
+
+                xml_file:
+                    hint: try the xml file link to know more about the actual structure of the xml file
+                    example: |
+                        <xbrli:xbrl>
+
+                            <!-- ================================================= -->
+                            <!-- Filing-Level Metadata -->
+                            <!-- contextRef="MainI" -->
+                            <!-- ================================================= -->
+
+                            <in-bse-co:ScripCode contextRef="MainI">
+                                532663
+                            </in-bse-co:ScripCode>
+
+                            <in-bse-co:Symbol contextRef="MainI">
+                                SASKEN
+                            </in-bse-co:Symbol>
+
+                            <in-bse-co:NameOfTheCompany contextRef="MainI">
+                                Sasken Technologies Limited
+                            </in-bse-co:NameOfTheCompany>
+
+                            <in-bse-co:DateOfFiling contextRef="MainI">
+                                2026-05-27
+                            </in-bse-co:DateOfFiling>
+
+                            <in-bse-co:ISINCode contextRef="MainI">
+                                INE231F01020
+                            </in-bse-co:ISINCode>
+
+                            <in-bse-co:DisclosureUnderRegulation contextRef="MainI">
+                                Regulation 7 (2)
+                            </in-bse-co:DisclosureUnderRegulation>
+
+
+                            <!-- ================================================= -->
+                            <!-- Disclosure Entry #1 -->
+                            <!-- contextRef="Disclosure1" -->
+                            <!-- ================================================= -->
+
+                            <in-bse-co:TypeOfInstrument contextRef="Disclosure1">
+                                Equity
+                            </in-bse-co:TypeOfInstrument>
+
+                            <in-bse-co:CategoryOfPerson contextRef="Disclosure1">
+                                Employee
+                            </in-bse-co:CategoryOfPerson>
+
+                            <in-bse-co:NameOfThePerson contextRef="Disclosure1">
+                                Ajay Kumar V
+                            </in-bse-co:NameOfThePerson>
+
+                            <in-bse-co:SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity
+                                contextRef="Disclosure1"
+                                unitRef="shares">
+
+                                500
+
+                            </in-bse-co:SecuritiesHeldPriorToAcquisitionOrDisposalNumberOfSecurity>
+
+                            <in-bse-co:SecuritiesAcquiredOrDisposedNumberOfSecurity
+                                contextRef="Disclosure1"
+                                unitRef="shares">
+
+                                100
+
+                            </in-bse-co:SecuritiesAcquiredOrDisposedNumberOfSecurity>
+
+                            <in-bse-co:SecuritiesAcquiredOrDisposedValueOfSecurity
+                                contextRef="Disclosure1"
+                                unitRef="INR">
+
+                                192776
+
+                            </in-bse-co:SecuritiesAcquiredOrDisposedValueOfSecurity>
+
+                            <in-bse-co:SecuritiesAcquiredOrDisposedTransactionType
+                                contextRef="Disclosure1">
+
+                                Sell
+
+                            </in-bse-co:SecuritiesAcquiredOrDisposedTransactionType>
+
+                            <in-bse-co:SecuritiesHeldPostAcquistionOrDisposalNumberOfSecurity
+                                contextRef="Disclosure1"
+                                unitRef="shares">
+
+                                400
+
+                            </in-bse-co:SecuritiesHeldPostAcquistionOrDisposalNumberOfSecurity>
+
+                            <in-bse-co:ModeOfAcquisitionOrDisposal
+                                contextRef="Disclosure1">
+
+                                Market Sale
+
+                            </in-bse-co:ModeOfAcquisitionOrDisposal>
+
+                            <in-bse-co:ExchangeOnWhichTheTradeWasExecuted
+                                contextRef="Disclosure1">
+
+                                NSE
+
+                            </in-bse-co:ExchangeOnWhichTheTradeWasExecuted>
+
+
+                            <!-- ================================================= -->
+                            <!-- Disclosure Entry #2 -->
+                            <!-- contextRef="Disclosure2" -->
+                            <!-- ================================================= -->
+
+                            <in-bse-co:TypeOfInstrument contextRef="Disclosure2">
+                                Equity
+                            </in-bse-co:TypeOfInstrument>
+
+                            <in-bse-co:CategoryOfPerson contextRef="Disclosure2">
+                                Promoter
+                            </in-bse-co:CategoryOfPerson>
+
+                            <in-bse-co:NameOfThePerson contextRef="Disclosure2">
+                                Example Person
+                            </in-bse-co:NameOfThePerson>
+
+                            ...
+
+                        </xbrli:xbrl>
+
+    market_large_deals:
+        base: https://www.nseindia.com/api/snapshot-capital-market-largedeal
+        example:
+            request: https://www.nseindia.com/api/snapshot-capital-market-largedeal
+            response: |
+                {
+                "as_on_date": "27-May-2026",
+                "BULK_DEALS_DATA": [
+                {
+                "buySell": "BUY",
+                "clientName": "HRTI PRIVATE LIMITED",
+                "date": "27-May-2026",
+                "name": "Apollo Micro Systems Ltd",
+                "qty": "1425742",
+                "remarks": "-",
+                "symbol": "APOLLO",
+                "watp": "422.7"
+                },
+                ...
+                ],
+                "SHORT_DEALS_DATA": [...],
+                "BLOCK_DEALS_DATA": [...],
+                "BULK_DEALS": "81",
+                "SHORT_DEALS": "229",
+                "BLOCK_DEALS": "2"
+                }
+
+    live_stock_analysis:
+        base: https://www.nseindia.com/api/live-analysis-stocksTraded
+        args:
+            symbol:
+                type: string
+                example: APOLLO
+                hint: Use stock symbol to filter only on that symbol
+        example:
+            request: https://www.nseindia.com/api/live-analysis-stocksTraded
+            response: |
+                {
+                "total": {
+                "count": {
+                "Advances": 1761,
+                "Unchange": 117,
+                "Declines": 1527,
+                "Total": 3405
+                },
+                "data": [
+                {
+                "identifier": "COALINDIAEQN",
+                "symbol": "COALINDIA",
+                "series": "EQ",
+                "marketType": "N",
+                "pchange": 1.19,
+                "change": 5.45,
+                "basePrice": 0,
+                "previousClose": 458.15,
+                "lastPrice": 463.6,
+                "totalTradedVolume": 1170.42535,
+                "issuedCap": 6162728327,
+                "totalTradedValue": 5274.63888231,
+                "totalMarketCap": 285704.08523972
+                },
+                {
+                "identifier": "HDFCBANKEQN",
+                "symbol": "HDFCBANK",
+                "series": "EQ",
+                "marketType": "N",
+                "pchange": -2.54,
+                "change": -19.75,
+                "basePrice": 0,
+                "previousClose": 778.9,
+                "lastPrice": 759.15,
+                "totalTradedVolume": 636.80153,
+                "issuedCap": 15396332196,
+                "totalTradedValue": 4853.510221201001,
+                "totalMarketCap": 1168812.55865934
+                },
+                ...
+                ]
+                }
+
+    holidays:
+        base: https://www.nseindia.com/api/holiday-master?type=trading
+        example:
+            request: https://www.nseindia.com/api/holiday-master?type=trading
+            response: |
+                {
+                "CBM": [
+                {
+                "tradingDate": "15-Jan-2026",
+                "weekDay": "Thursday",
+                "description": "Municipal Corporation Election - Maharashtra",
+                "morning_session": null,
+                "evening_session": null,
+                "Sr_no": 1
+                },
+                {
+                "tradingDate": "26-Jan-2026",
+                "weekDay": "Monday",
+                "description": "Republic Day",
+                "morning_session": null,
+                "evening_session": null,
+                "Sr_no": 2
+                },
+                {
+                "tradingDate": "15-Feb-2026",
+                "weekDay": "Sunday",
+                "description": "Mahashivratri",
+                "morning_session": null,
+                "evening_session": null,
+                "Sr_no": 3
+                },
+                ...
+                ],
+                "COM": [
+                {
+                "tradingDate": "01-Jan-2026",
+                "weekDay": "Thursday",
+                "description": "New year",
+                "morning_session": "Open",
+                "evening_session": "Closed",
+                "Sr_no": 1
+                },
+                {
+                "tradingDate": "15-Jan-2026",
+                "weekDay": "Thursday",
+                "description": "Municipal Corporation Election - Maharashtra",
+                "morning_session": "Closed",
+                "evening_session": "Open",
+                "Sr_no": 2
+                },
+                ...
+                ],
+                ...
+                }
+            hint: available keys are - CBM, CD, CM, CMOT, COM, EGR, FO, IRD, MF, NDM, NTRP, SLBS

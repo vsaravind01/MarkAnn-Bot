@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
@@ -23,8 +23,11 @@ async def subscribe(body: WatchlistAdd, request: Request):
         session.add(entry)
         try:
             await session.commit()
-        except IntegrityError:
+        except IntegrityError as e:
             await session.rollback()
+            if "foreign key" in str(e.orig).lower():
+                raise HTTPException(status_code=422, detail="user_id does not exist")
+            # Duplicate subscription — idempotent, fall through to Redis sync
 
     await redis.sadd(watch_key(body.symbol.upper()), str(body.user_id))
     return {"user_id": body.user_id, "symbol": body.symbol.upper(), "action": "subscribed"}
