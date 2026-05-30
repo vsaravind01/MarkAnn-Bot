@@ -1,3 +1,4 @@
+import inspect
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -6,57 +7,394 @@ from llm.anthropic import AnthropicProvider
 from llm.factory import get_provider
 from llm.gemini import GeminiProvider
 from llm.openai import OpenAIProvider
+from llm.provider import LLMContextWindowError, LLMResponseFormatError, parse_analysis_json
+
+_ANALYSIS_JSON = """
+{
+  "summary": "Infosys reported strong Q4 growth and announced guidance upgrades.",
+  "category": "financial_results",
+  "confidence": "high",
+  "need_more_pages": false
+}
+"""
 
 
-async def test_openai_summarize():
+def _expected_analyze_announcement_params() -> list[str]:
+    return [
+        "self",
+        "page_images",
+        "categories",
+        "symbol",
+        "company",
+        "announcement_text",
+        "page_range_start",
+        "page_range_end",
+        "total_pages",
+        "provisional_summary",
+        "response_format_retry",
+    ]
+
+
+def _expected_analyze_text_params() -> list[str]:
+    return [
+        "self",
+        "text",
+        "categories",
+        "symbol",
+        "company",
+        "announcement_text",
+        "response_format_retry",
+    ]
+
+
+def _assert_provider_signature(cls: type[object]) -> None:
+    analyze_announcement = inspect.signature(cls.analyze_announcement)
+    assert list(analyze_announcement.parameters) == _expected_analyze_announcement_params()
+    for name, parameter in analyze_announcement.parameters.items():
+        if name == "self":
+            continue
+        assert parameter.kind == inspect.Parameter.KEYWORD_ONLY
+    assert analyze_announcement.parameters["provisional_summary"].default is None
+    assert analyze_announcement.parameters["response_format_retry"].default is False
+
+    analyze_text = inspect.signature(cls.analyze_text_announcement)
+    assert list(analyze_text.parameters) == _expected_analyze_text_params()
+    for name, parameter in analyze_text.parameters.items():
+        if name == "self":
+            continue
+        assert parameter.kind == inspect.Parameter.KEYWORD_ONLY
+    assert analyze_text.parameters["response_format_retry"].default is False
+
+
+def test_parse_analysis_json_accepts_valid_object_json():
+    result = parse_analysis_json(
+        _ANALYSIS_JSON,
+        categories=["financial_results", "acquisition"],
+    )
+    assert result.category == "financial_results"
+    assert result.confidence == "high"
+    assert result.need_more_pages is False
+
+
+def test_parse_analysis_json_rejects_markdown_wrapped_json():
+    with pytest.raises(LLMResponseFormatError, match="Model output is not valid JSON"):
+        parse_analysis_json(
+            f"```json\n{_ANALYSIS_JSON}\n```",
+            categories=["financial_results", "acquisition"],
+        )
+
+
+def test_parse_analysis_json_rejects_missing_required_fields():
+    with pytest.raises(LLMResponseFormatError, match="Field 'confidence'"):
+        parse_analysis_json('{"summary":"x","category":"financial_results"}')
+
+
+def test_parse_analysis_json_rejects_unknown_category():
+    with pytest.raises(LLMResponseFormatError, match="Unknown category"):
+        parse_analysis_json(_ANALYSIS_JSON, categories=["acquisition"])
+
+
+def test_parse_analysis_json_rejects_invalid_confidence():
+    with pytest.raises(LLMResponseFormatError, match="Field 'confidence'"):
+        parse_analysis_json(
+            '{"summary":"x","category":"financial_results","confidence":"certain"}',
+            categories=["financial_results"],
+        )
+
+
+def test_parse_analysis_json_rejects_invalid_need_more_pages_type():
+    with pytest.raises(LLMResponseFormatError, match="Field 'need_more_pages'"):
+        parse_analysis_json(
+            '{"summary":"x","category":"financial_results","confidence":"medium","need_more_pages":"yes"}',
+            categories=["financial_results"],
+        )
+
+
+def test_provider_signatures_match_contract():
+    _assert_provider_signature(OpenAIProvider)
+    _assert_provider_signature(AnthropicProvider)
+    _assert_provider_signature(GeminiProvider)
+
+
+async def test_openai_analyze_text_announcement():
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = "Strong quarterly growth."
+    mock_response.choices[0].message.content = _ANALYSIS_JSON
     with patch("llm.openai.AsyncOpenAI") as mock_cls:
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
         mock_cls.return_value = mock_client
         provider = OpenAIProvider(api_key="test-key")
-        result = await provider.summarize("Infosys reports Q4 results...")
-    assert result == "Strong quarterly growth."
+        result = await provider.analyze_text_announcement(
+            text="Q4 results...",
+            categories=["financial_results", "acquisition"],
+            symbol="INFY",
+            company="Infosys Ltd",
+            announcement_text="Quarterly earnings release",
+        )
+    assert result.category == "financial_results"
+    call_kwargs = mock_client.chat.completions.create.call_args.kwargs
+    assert call_kwargs["response_format"] == {"type": "json_object"}
+    user_prompt = call_kwargs["messages"][1]["content"]
+    assert "Symbol: INFY" in user_prompt
+    assert "Company: Infosys Ltd" in user_prompt
+    assert "Announcement text metadata:" in user_prompt
 
 
-async def test_openai_classify():
+async def test_openai_analyze_announcement_with_images_and_paging_context():
     mock_response = MagicMock()
     mock_response.choices = [MagicMock()]
-    mock_response.choices[0].message.content = "financial_results"
+    mock_response.choices[0].message.content = _ANALYSIS_JSON
     with patch("llm.openai.AsyncOpenAI") as mock_cls:
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
         mock_cls.return_value = mock_client
         provider = OpenAIProvider(api_key="test-key")
-        result = await provider.classify("Q4 results...", ["financial_results", "acquisition"])
-    assert result == "financial_results"
+        page_image = MagicMock(page_number=1, mime_type="image/png", data_base64="aGVsbG8=")
+        await provider.analyze_announcement(
+            page_images=[page_image],
+            categories=["financial_results", "acquisition"],
+            symbol="INFY",
+            company="Infosys Ltd",
+            announcement_text="Quarterly earnings release",
+            page_range_start=1,
+            page_range_end=2,
+            total_pages=4,
+            provisional_summary="Interim summary",
+            response_format_retry=True,
+        )
+    messages = mock_client.chat.completions.create.call_args.kwargs["messages"]
+    user_content = messages[1]["content"]
+    assert user_content[1]["type"] == "image_url"
+    assert user_content[1]["image_url"]["url"].startswith("data:image/png;base64,")
+    prompt = user_content[0]["text"]
+    assert "Current page range: 1-2" in prompt
+    assert "Total pages in announcement: 4" in prompt
+    assert "Provisional summary from previous pages: Interim summary" in prompt
+    assert "need_more_pages" in prompt
+    assert "This is a response-format retry" in prompt
 
 
-async def test_anthropic_summarize():
+async def test_openai_context_window_error_mapping():
+    with patch("llm.openai.AsyncOpenAI") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=RuntimeError("maximum context length exceeded")
+        )
+        mock_cls.return_value = mock_client
+        provider = OpenAIProvider(api_key="test-key")
+        with pytest.raises(LLMContextWindowError):
+            await provider.analyze_text_announcement(
+                text="Q4 results...",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Quarterly earnings release",
+            )
+
+
+async def test_openai_raises_response_format_error_for_empty_choices():
+    mock_response = MagicMock()
+    mock_response.choices = []
+    with patch("llm.openai.AsyncOpenAI") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_cls.return_value = mock_client
+        provider = OpenAIProvider(api_key="test-key")
+        with pytest.raises(LLMResponseFormatError, match="choices"):
+            await provider.analyze_text_announcement(
+                text="Q4 results...",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Quarterly earnings release",
+            )
+
+
+async def test_anthropic_analyze_text_announcement():
     mock_response = MagicMock()
     mock_response.content = [MagicMock()]
-    mock_response.content[0].text = "Acquisition of XYZ Corp."
-    with patch("anthropic.AsyncAnthropic") as mock_cls:
+    mock_response.content[0].type = "text"
+    mock_response.content[0].text = _ANALYSIS_JSON
+    with patch("llm.anthropic._anthropic.AsyncAnthropic") as mock_cls:
         mock_client = AsyncMock()
         mock_client.messages.create = AsyncMock(return_value=mock_response)
         mock_cls.return_value = mock_client
         provider = AnthropicProvider(api_key="test-key")
-        result = await provider.summarize("Infosys acquires XYZ...")
-    assert result == "Acquisition of XYZ Corp."
+        result = await provider.analyze_text_announcement(
+            text="Infosys acquires XYZ...",
+            categories=["financial_results", "acquisition"],
+            symbol="INFY",
+            company="Infosys Ltd",
+            announcement_text="Acquisition update",
+        )
+    assert result.summary.startswith("Infosys reported")
 
 
-async def test_gemini_summarize():
+async def test_anthropic_analyze_announcement_with_images():
     mock_response = MagicMock()
-    mock_response.text = "New product launched."
+    mock_response.content = [MagicMock()]
+    mock_response.content[0].type = "text"
+    mock_response.content[0].text = _ANALYSIS_JSON
+    with patch("llm.anthropic._anthropic.AsyncAnthropic") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_cls.return_value = mock_client
+        provider = AnthropicProvider(api_key="test-key")
+        page_image = MagicMock(page_number=2, mime_type="image/jpeg", data_base64="aGVsbG8=")
+        await provider.analyze_announcement(
+            page_images=[page_image],
+            categories=["financial_results", "acquisition"],
+            symbol="INFY",
+            company="Infosys Ltd",
+            announcement_text="Acquisition update",
+            page_range_start=2,
+            page_range_end=2,
+            total_pages=5,
+        )
+    content = mock_client.messages.create.call_args.kwargs["messages"][0]["content"]
+    assert content[1]["type"] == "image"
+    assert content[1]["source"]["media_type"] == "image/jpeg"
+    assert "Current page range: 2-2" in content[0]["text"]
+
+
+async def test_anthropic_raises_response_format_error_for_invalid_json():
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock()]
+    mock_response.content[0].type = "text"
+    mock_response.content[0].text = "not json"
+    with patch("llm.anthropic._anthropic.AsyncAnthropic") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_cls.return_value = mock_client
+        provider = AnthropicProvider(api_key="test-key")
+        with pytest.raises(LLMResponseFormatError):
+            await provider.analyze_text_announcement(
+                text="Bad output",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Bad output",
+            )
+
+
+async def test_anthropic_raises_response_format_error_for_missing_text_block():
+    mock_response = MagicMock()
+    non_text_block = MagicMock()
+    non_text_block.type = "image"
+    mock_response.content = [non_text_block]
+    with patch("llm.anthropic._anthropic.AsyncAnthropic") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_cls.return_value = mock_client
+        provider = AnthropicProvider(api_key="test-key")
+        with pytest.raises(LLMResponseFormatError, match="text content blocks"):
+            await provider.analyze_text_announcement(
+                text="Infosys acquires XYZ...",
+                categories=["financial_results", "acquisition"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Acquisition update",
+            )
+
+
+async def test_anthropic_raises_response_format_error_for_empty_text_block():
+    mock_response = MagicMock()
+    empty_text_block = MagicMock()
+    empty_text_block.type = "text"
+    empty_text_block.text = "  "
+    mock_response.content = [empty_text_block]
+    with patch("llm.anthropic._anthropic.AsyncAnthropic") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_cls.return_value = mock_client
+        provider = AnthropicProvider(api_key="test-key")
+        with pytest.raises(LLMResponseFormatError, match="empty text"):
+            await provider.analyze_text_announcement(
+                text="Infosys acquires XYZ...",
+                categories=["financial_results", "acquisition"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Acquisition update",
+            )
+
+
+async def test_anthropic_context_window_error_mapping():
+    with patch("llm.anthropic._anthropic.AsyncAnthropic") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.messages.create = AsyncMock(side_effect=RuntimeError("prompt is too long"))
+        mock_cls.return_value = mock_client
+        provider = AnthropicProvider(api_key="test-key")
+        with pytest.raises(LLMContextWindowError):
+            await provider.analyze_text_announcement(
+                text="Long prompt",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Long prompt",
+            )
+
+
+async def test_gemini_analyze_text_announcement():
+    mock_response = MagicMock()
+    mock_response.text = _ANALYSIS_JSON
     with patch("llm.gemini.genai") as mock_genai:
         mock_client = MagicMock()
         mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
         mock_genai.Client.return_value = mock_client
         provider = GeminiProvider(api_key="test-key")
-        result = await provider.summarize("Launch of new product...")
-    assert result == "New product launched."
+        result = await provider.analyze_text_announcement(
+            text="Launch of new product...",
+            categories=["financial_results", "acquisition"],
+            symbol="INFY",
+            company="Infosys Ltd",
+            announcement_text="Product launch",
+        )
+    assert result.confidence == "high"
+
+
+async def test_gemini_analyze_announcement_with_images():
+    mock_response = MagicMock()
+    mock_response.text = _ANALYSIS_JSON
+    with patch("llm.gemini.genai") as mock_genai:
+        mock_client = MagicMock()
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+        mock_genai.Client.return_value = mock_client
+        provider = GeminiProvider(api_key="test-key")
+        page_image = MagicMock(page_number=3, mime_type="image/png", data_base64="aGVsbG8=")
+        await provider.analyze_announcement(
+            page_images=[page_image],
+            categories=["financial_results", "acquisition"],
+            symbol="INFY",
+            company="Infosys Ltd",
+            announcement_text="Product launch",
+            page_range_start=3,
+            page_range_end=3,
+            total_pages=3,
+            provisional_summary="Prior pages covered launch context",
+        )
+    contents = mock_client.aio.models.generate_content.call_args.kwargs["contents"]
+    assert len(contents[0].parts) == 2
+    assert "Current page range: 3-3" in contents[0].parts[0].text
+    assert "Total pages in announcement: 3" in contents[0].parts[0].text
+
+
+async def test_gemini_context_window_error_mapping():
+    with patch("llm.gemini.genai") as mock_genai:
+        mock_client = MagicMock()
+        mock_client.aio.models.generate_content = AsyncMock(
+            side_effect=RuntimeError("context window exceeded")
+        )
+        mock_genai.Client.return_value = mock_client
+        provider = GeminiProvider(api_key="test-key")
+        with pytest.raises(LLMContextWindowError):
+            await provider.analyze_text_announcement(
+                text="Long prompt",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Long prompt",
+            )
 
 
 def test_factory_openai(monkeypatch):
