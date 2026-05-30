@@ -131,9 +131,7 @@ class CorporateAnnouncementsProcessor:
             pdf_bytes = response.content
 
             loop = asyncio.get_running_loop()
-            announced_at = _parse_nse_datetime(
-                item.get("an_dt"), default=_DEFAULT_ANNOUNCED_AT
-            )
+            announced_at = _parse_nse_datetime(item.get("an_dt"), default=_DEFAULT_ANNOUNCED_AT)
             company = item.get("sm_name", "")
             announcement_text = item.get("attchmntText", "")
             analysis = await self._analyze_with_multimodal_fallback(
@@ -191,7 +189,9 @@ class CorporateAnnouncementsProcessor:
             )
             await self._redis.publish(alert_channel(symbol), payload_json)
 
-            logger.info(f"Processed announcement seq_id={seq_id} symbol={symbol} category={category}")
+            logger.info(
+                f"Processed announcement seq_id={seq_id} symbol={symbol} category={category}"
+            )
             await push_event(
                 self._redis,
                 "ok",
@@ -399,7 +399,8 @@ class CorporateAnnouncementsProcessor:
                 f"({len(text)} → {_MAX_TEXT_CHARS} chars) before LLM"
             )
             await push_event(
-                self._redis, "warn",
+                self._redis,
+                "warn",
                 f"seq_id={seq_id} ({symbol}): PDF truncated {len(text):,} → {_MAX_TEXT_CHARS:,} chars",
                 api="corp_ann",
             )

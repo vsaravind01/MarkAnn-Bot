@@ -199,9 +199,7 @@ async def test_happy_path_multimodal_stores_and_publishes(fake_redis, async_db_s
     pool.shutdown(wait=False)
 
 
-async def test_malformed_announcement_datetime_uses_default_timestamp(
-    fake_redis, async_db_session
-):
+async def test_malformed_announcement_datetime_uses_default_timestamp(fake_redis, async_db_session):
     pdf_bytes = _make_pdf_bytes(page_count=2)
     pdf_request = httpx.Request("GET", "https://nsearchives.nseindia.com/test.pdf")
     mock_session = MagicMock()
@@ -478,8 +476,7 @@ async def test_context_shrinks_to_min_and_then_falls_back_to_text(fake_redis, as
 
     assert mock_llm.analyze_announcement.await_count == 5
     assert [
-        call.kwargs["page_range_end"]
-        for call in mock_llm.analyze_announcement.await_args_list
+        call.kwargs["page_range_end"] for call in mock_llm.analyze_announcement.await_args_list
     ] == [5, 4, 3, 2, 1]
     mock_llm.analyze_text_announcement.assert_awaited_once()
 
@@ -655,9 +652,7 @@ async def test_text_fallback_truncates_and_retries_response_format(
     pool.shutdown(wait=False)
 
 
-async def test_retry_after_post_commit_cache_failure_is_idempotent(
-    fake_redis, async_db_session
-):
+async def test_retry_after_post_commit_cache_failure_is_idempotent(fake_redis, async_db_session):
     pdf_bytes = _make_pdf_bytes(page_count=2)
     pdf_request = httpx.Request("GET", "https://nsearchives.nseindia.com/test.pdf")
     mock_session = MagicMock()

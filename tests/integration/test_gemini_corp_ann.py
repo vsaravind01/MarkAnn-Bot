@@ -45,9 +45,7 @@ _NSE_HEADERS = {
 }
 _RAILTEL_SYMBOL = "RAILTEL"
 _RAILTEL_COMPANY = "RailTel Corporation of India Ltd"
-_RAILTEL_ANNOUNCEMENT_TEXT = (
-    "NSE corporate disclosure metadata for attached filing PDF."
-)
+_RAILTEL_ANNOUNCEMENT_TEXT = "NSE corporate disclosure metadata for attached filing PDF."
 
 
 def _make_provider() -> GeminiProvider:
@@ -59,7 +57,9 @@ def _make_provider() -> GeminiProvider:
 
 
 async def _fetch_pdf_text(url: str) -> str:
-    async with httpx.AsyncClient(headers=_NSE_HEADERS, follow_redirects=True, timeout=30.0) as client:
+    async with httpx.AsyncClient(
+        headers=_NSE_HEADERS, follow_redirects=True, timeout=30.0
+    ) as client:
         response = await client.get(url)
         response.raise_for_status()
     doc = fitz.open(stream=response.content, filetype="pdf")
@@ -112,12 +112,8 @@ async def test_gemini_summarises_railtel_order(railtel_analysis):
 
     lower = summary.lower()
 
-    assert "railtel" in lower, (
-        f"Summary missing company name 'railtel': {summary!r}"
-    )
-    assert "order" in lower, (
-        f"Summary missing event type 'order': {summary!r}"
-    )
+    assert "railtel" in lower, f"Summary missing company name 'railtel': {summary!r}"
+    assert "order" in lower, f"Summary missing event type 'order': {summary!r}"
     assert any(term in lower for term in ("security", "police", "integrated", "andhra pradesh")), (
         f"Summary missing contract specifics (security/police/integrated/Andhra Pradesh): {summary!r}"
     )
