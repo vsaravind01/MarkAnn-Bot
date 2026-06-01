@@ -70,3 +70,107 @@ async def test_restart_cancels_and_restarts_task():
     await asyncio.sleep(0.05)
     assert states.count("start") >= 2
     await supervisor.shutdown()
+
+
+async def test_restart_isolated_by_namespace():
+    states = {"poller": 0, "processor": 0}
+
+    async def poller_worker():
+        states["poller"] += 1
+        await asyncio.sleep(10)
+
+    async def processor_worker():
+        states["processor"] += 1
+        await asyncio.sleep(10)
+
+    supervisor = Supervisor(restart_delay=0.01)
+    supervisor.register("poller:corp_ann", poller_worker)
+    supervisor.register("processor:corp_ann", processor_worker)
+
+    await supervisor.start_all()
+    await asyncio.sleep(0.05)
+    await supervisor.restart("poller:corp_ann")
+    await asyncio.sleep(0.05)
+
+    assert states["poller"] >= 2
+    assert states["processor"] == 1
+
+    await supervisor.shutdown()
+
+
+async def test_pause_poller_does_not_affect_processor():
+    poller_started = asyncio.Event()
+    processor_started = asyncio.Event()
+
+    async def poller_worker():
+        poller_started.set()
+        await asyncio.sleep(10)
+
+    async def processor_worker():
+        processor_started.set()
+        await asyncio.sleep(10)
+
+    supervisor = Supervisor(restart_delay=0.01)
+    supervisor.register("poller:corp_ann", poller_worker)
+    supervisor.register("processor:corp_ann", processor_worker)
+
+    await supervisor.start_all()
+    await asyncio.sleep(0.05)
+    assert poller_started.is_set()
+    assert processor_started.is_set()
+
+    await supervisor.pause("poller:corp_ann")
+
+    assert supervisor._tasks["poller:corp_ann"].done()
+    assert not supervisor._tasks["processor:corp_ann"].done()
+
+    await supervisor.shutdown()
+
+
+async def test_pause_processor_does_not_affect_poller():
+    poller_started = asyncio.Event()
+    processor_started = asyncio.Event()
+
+    async def poller_worker():
+        poller_started.set()
+        await asyncio.sleep(10)
+
+    async def processor_worker():
+        processor_started.set()
+        await asyncio.sleep(10)
+
+    supervisor = Supervisor(restart_delay=0.01)
+    supervisor.register("poller:corp_ann", poller_worker)
+    supervisor.register("processor:corp_ann", processor_worker)
+
+    await supervisor.start_all()
+    await asyncio.sleep(0.05)
+    assert poller_started.is_set()
+    assert processor_started.is_set()
+
+    await supervisor.pause("processor:corp_ann")
+
+    assert supervisor._tasks["processor:corp_ann"].done()
+    assert not supervisor._tasks["poller:corp_ann"].done()
+
+    await supervisor.shutdown()
+
+
+async def test_start_is_noop_when_task_already_running():
+    starts = []
+
+    async def worker():
+        starts.append(1)
+        await asyncio.sleep(10)
+
+    supervisor = Supervisor(restart_delay=0.01)
+    supervisor.register("processor:corp_ann", worker)
+
+    await supervisor.start("processor:corp_ann")
+    await asyncio.sleep(0.05)
+    await supervisor.start("processor:corp_ann")
+    await asyncio.sleep(0.05)
+
+    assert len(starts) == 1
+
+    await supervisor.shutdown()

@@ -4,6 +4,7 @@ from engine.health import (
     write_heartbeat,
     write_interval,
     write_last_success,
+    write_processor_status,
     write_status,
 )
 
@@ -34,6 +35,12 @@ async def test_write_error_count(fake_redis):
     await write_error_count(fake_redis, "corp_ann", 3)
     val = await fake_redis.get("poller:corp_ann:error_count")
     assert val == "3"
+
+
+async def test_write_processor_status(fake_redis):
+    await write_processor_status(fake_redis, "corp_ann", "running")
+    val = await fake_redis.get("processor:corp_ann:status")
+    assert val == "running"
 
 
 async def test_read_health_returns_all_fields(fake_redis):

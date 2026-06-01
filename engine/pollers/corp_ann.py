@@ -1,4 +1,3 @@
-import asyncio
 from datetime import date
 
 from redis.asyncio import Redis
@@ -12,14 +11,16 @@ _NSE_CORP_ANN_URL = "https://www.nseindia.com/api/corporate-announcements"
 class CorporateAnnouncementsPoller(Poller):
     def __init__(
         self,
-        queue: asyncio.Queue,
         session: NseSession,
         redis: Redis,
         index: str = "equities",
         **kwargs,
     ) -> None:
-        super().__init__(api_name="corp_ann", queue=queue, session=session, redis=redis, **kwargs)
+        super().__init__(api_name="corp_ann", session=session, redis=redis, **kwargs)
         self._index = index
+
+    def item_id(self, item: dict) -> str:
+        return item.get("seq_id") or super().item_id(item)
 
     async def fetch(self) -> list[dict]:
         today = date.today().strftime("%d-%m-%Y")
@@ -32,6 +33,6 @@ class CorporateAnnouncementsPoller(Poller):
         if "application/json" not in content_type:
             raise ValueError(
                 f"NSE returned non-JSON response (content-type={content_type!r}, "
-                f"status={response.status_code}) — session cookie may be missing or blocked"
+                f"status={response.status_code}) - session cookie may be missing or blocked"
             )
         return response.json()

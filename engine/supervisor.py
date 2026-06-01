@@ -2,8 +2,14 @@ import asyncio
 import logging
 import time
 from collections.abc import Callable, Coroutine
+from contextlib import suppress
 from typing import Any
 
+from database.redis import (
+    poller_heartbeat_key,
+    poller_last_success_key,
+    poller_status_key,
+)
 from engine.events import push_event
 
 logger = logging.getLogger(__name__)
@@ -20,6 +26,9 @@ class Supervisor:
         self._factories[name] = factory
 
     async def start(self, name: str) -> None:
+        existing = self._tasks.get(name)
+        if existing is not None and not existing.done():
+            return
         factory = self._factories[name]
         task = asyncio.create_task(factory(), name=name)
         self._tasks[name] = task
@@ -42,19 +51,15 @@ class Supervisor:
     async def restart(self, name: str) -> None:
         if name in self._tasks and not self._tasks[name].done():
             self._tasks[name].cancel()
-            try:
+            with suppress(asyncio.CancelledError, Exception):
                 await self._tasks[name]
-            except (asyncio.CancelledError, Exception):
-                pass
         await self.start(name)
 
     async def pause(self, name: str) -> None:
         if name in self._tasks and not self._tasks[name].done():
             self._tasks[name].cancel()
-            try:
+            with suppress(asyncio.CancelledError, Exception):
                 await self._tasks[name]
-            except (asyncio.CancelledError, Exception):
-                pass
 
     async def shutdown(self) -> None:
         self._shutdown = True
@@ -87,18 +92,18 @@ class Watchdog:
                 await self._check(api)
 
     async def _check(self, api: str) -> None:
-        status = await self._redis.get(f"poller:{api}:status")
+        status = await self._redis.get(poller_status_key(api))
         if status == "paused":
             return
 
-        heartbeat_exists = await self._redis.exists(f"poller:{api}:heartbeat")
+        heartbeat_exists = await self._redis.exists(poller_heartbeat_key(api))
         if not heartbeat_exists:
             logger.warning(f"Watchdog: {api!r} heartbeat missing — restarting")
             await push_event(self._redis, "warn", "watchdog restarted — heartbeat missing", api=api)
-            await self._supervisor.restart(api)
+            await self._supervisor.restart(f"poller:{api}")
             return
 
-        last_success_raw = await self._redis.get(f"poller:{api}:last_success")
+        last_success_raw = await self._redis.get(poller_last_success_key(api))
         if last_success_raw:
             elapsed = time.time() - float(last_success_raw)
             if elapsed > self._silence_threshold:

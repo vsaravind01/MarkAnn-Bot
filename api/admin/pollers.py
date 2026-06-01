@@ -25,7 +25,10 @@ async def get_poller(api: str, request: Request):
 
 
 async def _publish_control(redis: Redis, api: str, action: str) -> None:
-    await redis.publish("engine:control", json.dumps({"api": api, "action": action}))
+    await redis.publish(
+        "engine:control",
+        json.dumps({"component": f"poller:{api}", "action": action}),
+    )
 
 
 @router.post("/{api}/pause")
