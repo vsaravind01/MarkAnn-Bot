@@ -10,14 +10,11 @@ from database.redis import processor_status_key, queue_key
 router = APIRouter(tags=["admin-processors"])
 
 
-async def _registered_apis(request: Request) -> list[str]:
-    async with request.app.state.db_factory() as db:
-        rows = (
-            await db.execute(
-                select(ProcessorConfig.api_name).order_by(ProcessorConfig.api_name)
-            )
-        ).scalars().all()
-    return list(rows)
+def _parse_config(raw: str) -> dict:
+    try:
+        return json.loads(raw or "{}")
+    except json.JSONDecodeError:
+        return {}
 
 
 async def _read_processor_health(redis: Redis, api: str) -> dict:
@@ -33,10 +30,50 @@ async def _publish_control(redis: Redis, api: str, action: str) -> None:
     )
 
 
+async def _processor_payloads(request: Request, *, only_api: str | None = None) -> list[dict]:
+    redis: Redis = request.app.state.redis
+    async with request.app.state.db_factory() as db:
+        query = select(ProcessorConfig).order_by(ProcessorConfig.api_name)
+        if only_api is not None:
+            query = query.where(ProcessorConfig.api_name == only_api)
+        processors = (await db.execute(query)).scalars().all()
+        pollers = (await db.execute(select(PollerConfig))).scalars().all()
+        links = (await db.execute(select(ProcessorPollerLink))).scalars().all()
+
+    poller_api_by_id = {poller.id: poller.api_name for poller in pollers}
+    links_by_processor: dict[int, list[str]] = {}
+    for link in links:
+        poller_api = poller_api_by_id.get(link.poller_id)
+        if poller_api is not None:
+            links_by_processor.setdefault(link.processor_id, []).append(poller_api)
+
+    payloads = []
+    for processor in processors:
+        health = await _read_processor_health(redis, processor.api_name)
+        payloads.append(
+            {
+                **health,
+                "enabled": processor.enabled,
+                "config": _parse_config(processor.config),
+                "pollers": sorted(links_by_processor.get(processor.id, [])),
+            }
+        )
+    return payloads
+
+
+async def _registered_apis(request: Request) -> list[str]:
+    async with request.app.state.db_factory() as db:
+        rows = (
+            await db.execute(
+                select(ProcessorConfig.api_name).order_by(ProcessorConfig.api_name)
+            )
+        ).scalars().all()
+    return list(rows)
+
+
 @router.get("/admin/processors")
 async def list_processors(request: Request):
-    redis: Redis = request.app.state.redis
-    return [await _read_processor_health(redis, api) for api in await _registered_apis(request)]
+    return await _processor_payloads(request)
 
 
 @router.get("/admin/processor-poller-links")
@@ -64,9 +101,10 @@ async def list_links(request: Request):
 
 @router.get("/admin/processors/{api}")
 async def get_processor(api: str, request: Request):
-    if api not in await _registered_apis(request):
+    payloads = await _processor_payloads(request, only_api=api)
+    if not payloads:
         raise HTTPException(status_code=404, detail=f"Processor {api!r} not registered")
-    return await _read_processor_health(request.app.state.redis, api)
+    return payloads[0]
 
 
 @router.post("/admin/processors/{api}/pause")

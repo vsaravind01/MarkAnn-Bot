@@ -73,7 +73,16 @@ async def test_get_all_processors_health():
         response = await client.get("/admin/processors")
 
     assert response.status_code == 200
-    assert response.json() == [{"api": "corp_ann", "status": "running", "queue_size": 2}]
+    assert response.json() == [
+        {
+            "api": "corp_ann",
+            "status": "running",
+            "queue_size": 2,
+            "enabled": True,
+            "config": {},
+            "pollers": [],
+        }
+    ]
 
 
 async def test_get_single_processor_health():
@@ -89,7 +98,14 @@ async def test_get_single_processor_health():
         response = await client.get("/admin/processors/corp_ann")
 
     assert response.status_code == 200
-    assert response.json() == {"api": "corp_ann", "status": "paused", "queue_size": 1}
+    assert response.json() == {
+        "api": "corp_ann",
+        "status": "paused",
+        "queue_size": 1,
+        "enabled": True,
+        "config": {},
+        "pollers": [],
+    }
 
 
 async def test_get_unknown_processor_returns_404():
@@ -147,6 +163,48 @@ async def test_restart_poller_publishes_namespaced_component_control_message():
         "component": "poller:corp_ann",
         "action": "restart",
     }
+
+
+async def test_processor_listing_includes_enabled_config_and_linked_pollers():
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    await redis.set("processor:corp_ann:status", "running")
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as db:
+        poller_row = PollerConfig(
+            module="engine.pollers.corp_ann",
+            api_name="corp_ann",
+            output_schema="{}",
+            enabled=True,
+        )
+        processor_row = ProcessorConfig(
+            module="engine.processors.corp_ann",
+            api_name="corp_ann",
+            input_schema="{}",
+            config=json.dumps({"pool_size": 4}),
+            enabled=True,
+        )
+        db.add_all([poller_row, processor_row])
+        await db.commit()
+        db.add(
+            ProcessorPollerLink(processor_id=processor_row.id, poller_id=poller_row.id)
+        )
+        await db.commit()
+
+    from api.app import create_app
+
+    app = create_app(redis_override=redis, db_factory_override=factory)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/admin/processors/corp_ann")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["enabled"] is True
+    assert body["config"] == {"pool_size": 4}
+    assert body["pollers"] == ["corp_ann"]
 
 
 async def test_links_endpoint_returns_mapping():

@@ -16,10 +16,6 @@ class ContractError(Exception):
     """Raised when a module does not satisfy the poller/processor contract."""
 
 
-class SchemaIncompatibleError(Exception):
-    """Raised when a processor's input schema is not satisfied by a poller's output."""
-
-
 @dataclass
 class PollerModuleInfo:
     api_name: str

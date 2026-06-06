@@ -104,8 +104,10 @@ class PollerConfig(Base):
     module: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     api_name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     output_schema: Mapped[str] = mapped_column(Text, nullable=False)
-    config: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    config: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
@@ -119,8 +121,10 @@ class ProcessorConfig(Base):
     module: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     api_name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     input_schema: Mapped[str] = mapped_column(Text, nullable=False)
-    config: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    config: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
