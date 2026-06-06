@@ -27,7 +27,7 @@ import httpx
 import pytest
 from dotenv import load_dotenv
 
-from engine.processor.corp_ann import ANNOUNCEMENT_CATEGORIES
+from engine.processors.corp_ann import ANNOUNCEMENT_CATEGORIES
 from llm.gemini import GeminiProvider
 
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.test", override=False)

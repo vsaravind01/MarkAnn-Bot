@@ -1,14 +1,26 @@
 from datetime import date
 
+from pydantic import BaseModel
 from redis.asyncio import Redis
 
-from engine.poller import Poller
+from engine.poller import Poller as BasePoller
 from engine.session import NseSession
 
 _NSE_CORP_ANN_URL = "https://www.nseindia.com/api/corporate-announcements"
 
 
-class CorporateAnnouncementsPoller(Poller):
+class OutputSchema(BaseModel):
+    """Fields the corp_ann poller guarantees to emit per NSE announcement item."""
+
+    seq_id: str
+    symbol: str
+    sm_name: str
+    attchmntFile: str
+    attchmntText: str
+    an_dt: str
+
+
+class CorporateAnnouncementsPoller(BasePoller):
     def __init__(
         self,
         session: NseSession,
@@ -18,6 +30,10 @@ class CorporateAnnouncementsPoller(Poller):
     ) -> None:
         super().__init__(api_name="corp_ann", session=session, redis=redis, **kwargs)
         self._index = index
+
+    @classmethod
+    def default_config(cls) -> dict:
+        return {"base_interval": 5.0}
 
     def item_id(self, item: dict) -> str:
         return item.get("seq_id") or super().item_id(item)
@@ -34,5 +50,8 @@ class CorporateAnnouncementsPoller(Poller):
             raise ValueError(
                 f"NSE returned non-JSON response (content-type={content_type!r}, "
                 f"status={response.status_code}) - session cookie may be missing or blocked"
-            )
+        )
         return response.json()
+
+
+Poller = CorporateAnnouncementsPoller

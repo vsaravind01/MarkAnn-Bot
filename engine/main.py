@@ -4,35 +4,93 @@ import logging
 import os
 from concurrent.futures import ProcessPoolExecutor
 
-from sqlalchemy import select
-
-from database.models import EngineConfig
 from database.redis import get_redis_client, queue_key
 from database.session import AsyncSessionLocal
 from engine.consumer import ConsumerPool
 from engine.events import push_event
 from engine.health import write_processor_status, write_status
-from engine.pollers.corp_ann import CorporateAnnouncementsPoller
-from engine.processor.corp_ann import CorporateAnnouncementsProcessor
+from engine.registry import load_enabled
 from engine.session import NseSession
 from engine.supervisor import Supervisor, Watchdog
 from llm.factory import get_provider
 
 logger = logging.getLogger(__name__)
 
-_BASE_INTERVAL = float(os.environ.get("POLL_INTERVAL", "5"))
 _SILENCE_THRESHOLD = float(os.environ.get("POLLER_SILENCE_THRESHOLD", "600"))
 
 
-async def _get_pool_size(api: str, env_var: str, default: int) -> int:
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(EngineConfig).where(EngineConfig.key == f"pool_size:{api}")
+async def build_components(
+    *,
+    db,
+    supervisor: Supervisor,
+    redis,
+    session,
+    llm,
+    process_pool,
+    db_factory,
+    watchdog_register,
+) -> list[ConsumerPool]:
+    """Load enabled registry rows and register them with the supervisor."""
+    loaded_pollers, loaded_processors = await load_enabled(db)
+    pools: list[ConsumerPool] = []
+
+    for loaded_poller in loaded_pollers:
+        def make_poller_starter(loaded):
+            async def _start() -> None:
+                poller = loaded.poller_cls(
+                    session=session,
+                    redis=redis,
+                    **loaded.config,
+                )
+                await poller.run()
+
+            return _start
+
+        supervisor.register(
+            f"poller:{loaded_poller.api_name}",
+            make_poller_starter(loaded_poller),
         )
-        config = result.scalar_one_or_none()
-    if config:
-        return int(config.value)
-    return int(os.environ.get(env_var, str(default)))
+        watchdog_register(loaded_poller.api_name)
+
+    for loaded_processor in loaded_processors:
+        primary_poller_api = loaded_processor.poller_api_names[0]
+        pool_size = int(loaded_processor.config.get("pool_size", 8))
+
+        def make_processor_fn(loaded):
+            async def _fn(item: dict) -> None:
+                async with db_factory() as proc_db:
+                    processor = loaded.processor_cls(
+                        redis=redis,
+                        db=proc_db,
+                        llm=llm,
+                        process_pool=process_pool,
+                        session=session,
+                    )
+                    await processor.process(item)
+
+            return _fn
+
+        pool = ConsumerPool(
+            redis=redis,
+            queue_key=queue_key(primary_poller_api),
+            processor_fn=make_processor_fn(loaded_processor),
+            size=pool_size,
+        )
+        pools.append(pool)
+
+        def make_processor_starter(p: ConsumerPool, api: str):
+            async def _start() -> None:
+                await write_processor_status(redis, api, "running")
+                await p.run()
+
+            return _start
+
+        supervisor.register(
+            f"processor:{loaded_processor.api_name}",
+            make_processor_starter(pool, loaded_processor.api_name),
+        )
+
+    return pools
 
 
 async def _listen_control(redis, supervisor: Supervisor) -> None:
@@ -90,48 +148,23 @@ async def run() -> None:
     process_pool = ProcessPoolExecutor(max_workers=os.cpu_count())
     supervisor = Supervisor(restart_delay=2.0)
 
-    corp_ann_pool_size = await _get_pool_size("corp_ann", "CONSUMER_POOL_SIZE_CORP_ANN", 8)
-
     async with NseSession() as session:
-        async def start_corp_ann_poller() -> None:
-            poller = CorporateAnnouncementsPoller(
-                session=session,
-                redis=redis,
-                base_interval=_BASE_INTERVAL,
-            )
-            await poller.run()
-
-        async def corp_ann_processor_fn(item: dict) -> None:
-            async with AsyncSessionLocal() as db:
-                processor = CorporateAnnouncementsProcessor(
-                    redis=redis,
-                    db=db,
-                    llm=llm,
-                    process_pool=process_pool,
-                    session=session,
-                )
-                await processor.process(item)
-
-        corp_ann_pool = ConsumerPool(
-            redis=redis,
-            queue_key=queue_key("corp_ann"),
-            processor_fn=corp_ann_processor_fn,
-            size=corp_ann_pool_size,
-        )
-
-        async def start_corp_ann_processor() -> None:
-            await write_processor_status(redis, "corp_ann", "running")
-            await corp_ann_pool.run()
-
         watchdog = Watchdog(
             redis=redis,
             supervisor=supervisor,
             silence_threshold=_SILENCE_THRESHOLD,
         )
-        watchdog.register("corp_ann")
-
-        supervisor.register("poller:corp_ann", start_corp_ann_poller)
-        supervisor.register("processor:corp_ann", start_corp_ann_processor)
+        async with AsyncSessionLocal() as db:
+            pools = await build_components(
+                db=db,
+                supervisor=supervisor,
+                redis=redis,
+                session=session,
+                llm=llm,
+                process_pool=process_pool,
+                db_factory=AsyncSessionLocal,
+                watchdog_register=watchdog.register,
+            )
 
         await supervisor.start_all()
         try:
@@ -145,6 +178,8 @@ async def run() -> None:
                     logger.error("Background task exited unexpectedly", exc_info=exc)
         finally:
             await supervisor.shutdown()
+            for pool in pools:
+                await pool.stop()
 
     process_pool.shutdown(wait=False)
     await redis.aclose()

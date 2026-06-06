@@ -7,7 +7,7 @@ import httpx
 import pytest
 import respx
 
-from engine.pollers.corp_ann import CorporateAnnouncementsPoller
+from engine.pollers.corp_ann import CorporateAnnouncementsPoller, OutputSchema
 from engine.session import NseSession
 
 NSE_CORP_ANN_URL = "https://www.nseindia.com/api/corporate-announcements"
@@ -76,3 +76,14 @@ def test_item_id_falls_back_to_hash_when_seq_id_is_empty_string(fake_redis):
     item = {"seq_id": "", "symbol": "INFY"}
     expected_hash = hashlib.sha1(json.dumps(item, sort_keys=True).encode()).hexdigest()[:16]
     assert poller.item_id(item) == expected_hash
+
+
+def test_output_schema_declares_nse_fields():
+    props = OutputSchema.model_json_schema()["properties"]
+    for field in ("seq_id", "symbol", "sm_name", "attchmntFile", "attchmntText", "an_dt"):
+        assert field in props
+        assert props[field]["type"] == "string"
+
+
+def test_poller_default_config_has_base_interval():
+    assert CorporateAnnouncementsPoller.default_config() == {"base_interval": 5.0}
