@@ -20,6 +20,21 @@ from engine.registry import (
 logger = logging.getLogger(__name__)
 
 
+def _refreshed_config(default_config: dict, existing_raw: str | None) -> str:
+    """Merge module defaults under any existing stored config.
+
+    New default keys introduced by the module are added; existing stored values
+    (operator overrides or previously-seeded defaults) are preserved.
+    """
+    existing: dict = {}
+    if existing_raw:
+        try:
+            existing = json.loads(existing_raw)
+        except json.JSONDecodeError:
+            existing = {}
+    return json.dumps({**default_config, **existing})
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="engine.register")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -57,13 +72,14 @@ async def _register_poller(db, module: str) -> int:
     if existing:
         existing.api_name = info.api_name
         existing.output_schema = schema_json
+        existing.config = _refreshed_config(info.default_config, existing.config)
     else:
         db.add(
             PollerConfig(
                 module=module,
                 api_name=info.api_name,
                 output_schema=schema_json,
-                config="{}",
+                config=_refreshed_config(info.default_config, None),
                 enabled=False,
             )
         )
@@ -107,13 +123,14 @@ async def _register_processor(db, module: str, poller_apis: list[str]) -> int:
     if existing:
         existing.api_name = info.api_name
         existing.input_schema = schema_json
+        existing.config = _refreshed_config(info.default_config, existing.config)
         processor = existing
     else:
         processor = ProcessorConfig(
             module=module,
             api_name=info.api_name,
             input_schema=schema_json,
-            config="{}",
+            config=_refreshed_config(info.default_config, None),
             enabled=False,
         )
         db.add(processor)
