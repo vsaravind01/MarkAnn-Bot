@@ -67,3 +67,4 @@ async def test_announcement_fields(async_db_session):
     row = result.scalar_one()
     assert row.seq_id == "12345"
     assert row.symbol == "INFY"
+    assert row.processing_mode == "multimodal"

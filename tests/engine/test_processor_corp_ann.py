@@ -194,6 +194,7 @@ async def test_happy_path_multimodal_stores_and_publishes(fake_redis, async_db_s
     assert ann.symbol == "INFY"
     assert ann.summary == "Strong Q4 growth."
     assert ann.category == "financial_results"
+    assert ann.processing_mode == "multimodal"
     mock_llm.analyze_text_announcement.assert_not_called()
 
     pool.shutdown(wait=False)
@@ -592,6 +593,11 @@ async def test_falls_back_to_text_analysis_on_repeated_multimodal_format_failure
     payload = json.loads(cached)
     assert payload["summary"] == "Fallback text summary."
     assert payload["category"] == "general_update"
+    result = await async_db_session.execute(
+        select(Announcement).where(Announcement.seq_id == SAMPLE_ITEM["seq_id"])
+    )
+    ann = result.scalar_one()
+    assert ann.processing_mode == "text"
     warn_messages = await _corp_ann_warn_messages(fake_redis)
     assert any(
         message == "seq_id=106644730 (INFY): multimodal analysis failed, using text fallback"

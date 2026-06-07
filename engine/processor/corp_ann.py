@@ -53,6 +53,8 @@ ANNOUNCEMENT_CATEGORIES = [
 
 _IST = pytz.timezone("Asia/Kolkata")
 _DEFAULT_ANNOUNCED_AT = datetime(2000, 1, 1, 0, 0, 0)
+_PROCESSING_MODE_MULTIMODAL = "multimodal"
+_PROCESSING_MODE_TEXT = "text"
 
 
 def _parse_nse_datetime(dt_str: str | None, *, default: datetime) -> datetime:
@@ -134,7 +136,7 @@ class CorporateAnnouncementsProcessor:
             announced_at = _parse_nse_datetime(item.get("an_dt"), default=_DEFAULT_ANNOUNCED_AT)
             company = item.get("sm_name", "")
             announcement_text = item.get("attchmntText", "")
-            analysis = await self._analyze_with_multimodal_fallback(
+            analysis, processing_mode = await self._analyze_with_multimodal_fallback(
                 seq_id=seq_id,
                 symbol=symbol,
                 company=company,
@@ -154,6 +156,7 @@ class CorporateAnnouncementsProcessor:
                     category=category,
                     announcement_text=announcement_text,
                     summary=summary,
+                    processing_mode=processing_mode,
                     attachment_url=attachment_url,
                     announced_at=announced_at,
                 )
@@ -164,6 +167,7 @@ class CorporateAnnouncementsProcessor:
                 ann.category = category
                 ann.announcement_text = announcement_text
                 ann.summary = summary
+                ann.processing_mode = processing_mode
                 ann.attachment_url = attachment_url
                 ann.announced_at = announced_at
             await self._db.commit()
@@ -220,15 +224,16 @@ class CorporateAnnouncementsProcessor:
         announcement_text: str,
         pdf_bytes: bytes,
         loop: asyncio.AbstractEventLoop,
-    ) -> AnnouncementAnalysis:
+    ) -> tuple[AnnouncementAnalysis, str]:
         try:
-            return await self._analyze_multimodal(
+            analysis = await self._analyze_multimodal(
                 symbol=symbol,
                 company=company,
                 announcement_text=announcement_text,
                 pdf_bytes=pdf_bytes,
                 loop=loop,
             )
+            return analysis, _PROCESSING_MODE_MULTIMODAL
         except LLMProviderError as exc:
             logger.warning(
                 "seq_id=%s multimodal analysis failed, falling back to text analysis: %s",
@@ -241,7 +246,7 @@ class CorporateAnnouncementsProcessor:
                 f"seq_id={seq_id} ({symbol}): multimodal analysis failed, using text fallback",
                 api="corp_ann",
             )
-            return await self._analyze_text_fallback(
+            analysis = await self._analyze_text_fallback(
                 seq_id=seq_id,
                 symbol=symbol,
                 company=company,
@@ -249,6 +254,7 @@ class CorporateAnnouncementsProcessor:
                 pdf_bytes=pdf_bytes,
                 loop=loop,
             )
+            return analysis, _PROCESSING_MODE_TEXT
 
     async def _analyze_multimodal(
         self,

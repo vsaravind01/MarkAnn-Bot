@@ -92,6 +92,7 @@ class Announcement(Base):
     category: Mapped[str] = mapped_column(String(50), nullable=False)
     announcement_text: Mapped[str] = mapped_column(Text, nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
+    processing_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="multimodal")
     attachment_url: Mapped[str] = mapped_column(Text, nullable=False)
     announced_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     processed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
