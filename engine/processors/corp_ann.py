@@ -115,7 +115,7 @@ class CorporateAnnouncementsProcessor(ProcessorBase):
         self._process_pool = process_pool
         self._session = session
 
-    async def process(self, item: dict) -> None:
+    async def process(self, item: dict) -> str | None:
         seq_id = item.get("seq_id", "")
         symbol = item.get("symbol", "")
         dedup_redis_key = dedup_key("corp_ann", seq_id)
@@ -216,12 +216,9 @@ class CorporateAnnouncementsProcessor(ProcessorBase):
             logger.info(
                 f"Processed announcement seq_id={seq_id} symbol={symbol} category={category}"
             )
-            await push_event(
-                self._redis,
-                "ok",
-                f"processed {symbol} ({company}) — {category}",
-                api="corp_ann",
-            )
+            # The engine wrapper logs the success event with the processing time;
+            # return a summary describing what was processed.
+            return f"{symbol} ({company}) — {category}"
         except Exception as exc:
             if _should_release_dedup_key_after_error(
                 exc, post_commit_cache_or_publish=post_commit_cache_or_publish

@@ -1,8 +1,41 @@
 from unittest.mock import AsyncMock
 
+import fakeredis.aioredis
+
 from database.models import PollerConfig, ProcessorConfig, ProcessorPollerLink
-from engine.main import build_components
+from engine.events import read_events
+from engine.main import _run_processor, build_components
 from engine.supervisor import Supervisor
+
+
+class _StubProcessor:
+    def __init__(self, summary):
+        self._summary = summary
+
+    async def process(self, item: dict) -> str | None:
+        return self._summary
+
+
+async def test_run_processor_logs_processing_time_on_success():
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    await _run_processor(
+        _StubProcessor("INFY (Infosys) — financial_results"),
+        {"seq_id": "1"},
+        redis=redis,
+        api="corp_ann",
+    )
+    events = await read_events(redis)
+    assert len(events) == 1
+    assert events[0]["lvl"] == "ok"
+    assert events[0]["api"] == "corp_ann"
+    assert events[0]["msg"].startswith("processed INFY (Infosys) — financial_results in ")
+    assert events[0]["msg"].endswith("s")
+
+
+async def test_run_processor_logs_nothing_when_item_skipped():
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    await _run_processor(_StubProcessor(None), {"seq_id": "1"}, redis=redis, api="corp_ann")
+    assert await read_events(redis) == []
 
 _CORP_ANN_SCHEMA = (
     '{"properties": {'

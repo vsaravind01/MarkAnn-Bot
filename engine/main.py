@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from concurrent.futures import ProcessPoolExecutor
 
 from database.redis import get_redis_client, queue_key
@@ -17,6 +18,19 @@ from llm.factory import get_provider
 logger = logging.getLogger(__name__)
 
 _SILENCE_THRESHOLD = float(os.environ.get("POLLER_SILENCE_THRESHOLD", "600"))
+
+
+async def _run_processor(processor, item: dict, *, redis, api: str) -> None:
+    """Run one item through a processor, recording the processing time.
+
+    Applies to every processor: when ``process`` reports real work (a non-None
+    summary) the elapsed wall-clock time is written to the event log.
+    """
+    start = time.perf_counter()
+    summary = await processor.process(item)
+    if summary is not None:
+        elapsed = time.perf_counter() - start
+        await push_event(redis, "ok", f"processed {summary} in {elapsed:.2f}s", api=api)
 
 
 async def build_components(
@@ -66,7 +80,7 @@ async def build_components(
                         process_pool=process_pool,
                         session=session,
                     )
-                    await processor.process(item)
+                    await _run_processor(processor, item, redis=redis, api=loaded.api_name)
 
             return _fn
 
