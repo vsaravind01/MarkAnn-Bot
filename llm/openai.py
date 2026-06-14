@@ -21,9 +21,16 @@ _ANALYSIS_SYSTEM = (
 
 
 class OpenAIProvider:
-    def __init__(self, api_key: str | None = None, model: str = "gpt-4o"):
-        self._client = AsyncOpenAI(api_key=api_key or os.environ["OPENAI_API_KEY"])
-        self._model = model
+    def __init__(self, api_key: str | None = None, model: str | None = None):
+        # base_url lets the provider target any OpenAI-compatible server (e.g. a
+        # local vLLM endpoint) instead of api.openai.com. Such servers ignore the
+        # API key, so fall back to a placeholder when one is configured.
+        base_url = os.environ.get("OPENAI_BASE_URL") or None
+        key = api_key or os.environ.get("OPENAI_API_KEY")
+        if not key and base_url:
+            key = "not-needed"
+        self._client = AsyncOpenAI(api_key=key, base_url=base_url)
+        self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4o")
 
     async def analyze_announcement(
         self,
