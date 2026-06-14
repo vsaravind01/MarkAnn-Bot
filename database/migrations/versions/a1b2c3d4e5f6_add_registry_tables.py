@@ -1,7 +1,7 @@
 """add_registry_tables
 
 Revision ID: a1b2c3d4e5f6
-Revises: 6c2f88e4d2ab
+Revises: 9d4a6b7c8e12
 Create Date: 2026-06-06 10:00:00.000000
 """
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "a1b2c3d4e5f6"
-down_revision: str | Sequence[str] | None = "6c2f88e4d2ab"
+down_revision: str | Sequence[str] | None = "9d4a6b7c8e12"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
