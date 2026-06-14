@@ -14,6 +14,7 @@ from database.models import Announcement
 from database.redis import (
     alert_channel,
     dedup_key,
+    inflight_key,
     result_key,
     seconds_until_midnight,
 )
@@ -118,6 +119,7 @@ class CorporateAnnouncementsProcessor(ProcessorBase):
         seq_id = item.get("seq_id", "")
         symbol = item.get("symbol", "")
         dedup_redis_key = dedup_key("corp_ann", seq_id)
+        inflight_redis_key = inflight_key("corp_ann", seq_id)
 
         acquired = await self._redis.set(dedup_redis_key, "1", nx=True, ex=172800)
         if not acquired:
@@ -224,11 +226,19 @@ class CorporateAnnouncementsProcessor(ProcessorBase):
             if _should_release_dedup_key_after_error(
                 exc, post_commit_cache_or_publish=post_commit_cache_or_publish
             ):
+                # Always release the dedup key so a retry can re-process. Also
+                # release the inflight guard UNLESS the consumer re-queues the item
+                # itself (rate-limit path) — otherwise a failed item stays stuck
+                # until the inflight TTL expires (e.g. the LLM provider was down and
+                # later recovered), blocking the poller from re-enqueuing it.
+                keys_to_release = [dedup_redis_key]
+                if not isinstance(exc, LLMRateLimitError):
+                    keys_to_release.append(inflight_redis_key)
                 try:
-                    await self._redis.delete(dedup_redis_key)
+                    await self._redis.delete(*keys_to_release)
                 except Exception:
                     logger.exception(
-                        "Failed to release dedup key for seq_id=%s after processing error",
+                        "Failed to release dedup/inflight keys for seq_id=%s after error",
                         seq_id,
                     )
             raise

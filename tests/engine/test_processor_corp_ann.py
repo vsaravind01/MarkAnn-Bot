@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import select
 
 from database.models import Announcement
-from database.redis import dedup_key, result_key
+from database.redis import dedup_key, inflight_key, result_key
 from engine.events import read_events
 from engine.processors.base import ProcessorBase
 from engine.processors.corp_ann import (
@@ -849,4 +849,72 @@ async def test_rate_limit_error_releases_dedup_key_and_propagates(fake_redis, as
         await processor.process(SAMPLE_ITEM)
 
     assert await fake_redis.exists(dedup_key("corp_ann", SAMPLE_ITEM["seq_id"])) == 0
+    pool.shutdown(wait=False)
+
+
+async def test_processing_failure_releases_inflight_for_reprocessing(fake_redis, async_db_session):
+    """A non-rate-limit failure must release BOTH dedup and inflight keys so the poller
+    re-enqueues the item on its next cycle (e.g. after an LLM provider outage)."""
+    pdf_bytes = _make_pdf_bytes(page_count=1)
+    pdf_request = httpx.Request("GET", "https://nsearchives.nseindia.com/test.pdf")
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(
+        return_value=httpx.Response(
+            200,
+            content=pdf_bytes,
+            headers={"content-type": "application/pdf"},
+            request=pdf_request,
+        )
+    )
+
+    mock_llm = AsyncMock()
+    mock_llm.analyze_announcement.side_effect = RuntimeError("connection refused")
+    mock_llm.analyze_text_announcement.side_effect = RuntimeError("connection refused")
+
+    # Simulate the poller having marked the item in-flight before it was queued.
+    await fake_redis.set(inflight_key("corp_ann", SAMPLE_ITEM["seq_id"]), "1", ex=3600)
+
+    pool = ProcessPoolExecutor(max_workers=1)
+    processor = CorporateAnnouncementsProcessor(
+        redis=fake_redis, db=async_db_session, llm=mock_llm, process_pool=pool, session=mock_session
+    )
+
+    with pytest.raises(RuntimeError):
+        await processor.process(SAMPLE_ITEM)
+
+    assert await fake_redis.exists(dedup_key("corp_ann", SAMPLE_ITEM["seq_id"])) == 0
+    assert await fake_redis.exists(inflight_key("corp_ann", SAMPLE_ITEM["seq_id"])) == 0
+    pool.shutdown(wait=False)
+
+
+async def test_rate_limit_failure_keeps_inflight_for_consumer_requeue(fake_redis, async_db_session):
+    """On a rate-limit error the consumer re-queues the item, so process() must NOT release
+    the inflight key — doing so would let the poller enqueue a duplicate."""
+    pdf_bytes = _make_pdf_bytes(page_count=1)
+    pdf_request = httpx.Request("GET", "https://nsearchives.nseindia.com/test.pdf")
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(
+        return_value=httpx.Response(
+            200,
+            content=pdf_bytes,
+            headers={"content-type": "application/pdf"},
+            request=pdf_request,
+        )
+    )
+
+    mock_llm = AsyncMock()
+    mock_llm.analyze_announcement.side_effect = LLMRateLimitError("Rate limited.")
+
+    await fake_redis.set(inflight_key("corp_ann", SAMPLE_ITEM["seq_id"]), "1", ex=3600)
+
+    pool = ProcessPoolExecutor(max_workers=1)
+    processor = CorporateAnnouncementsProcessor(
+        redis=fake_redis, db=async_db_session, llm=mock_llm, process_pool=pool, session=mock_session
+    )
+
+    with pytest.raises(LLMRateLimitError):
+        await processor.process(SAMPLE_ITEM)
+
+    assert await fake_redis.exists(dedup_key("corp_ann", SAMPLE_ITEM["seq_id"])) == 0
+    assert await fake_redis.exists(inflight_key("corp_ann", SAMPLE_ITEM["seq_id"])) == 1
     pool.shutdown(wait=False)
