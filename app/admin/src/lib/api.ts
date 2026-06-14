@@ -28,7 +28,20 @@ async function doRefresh(): Promise<void> {
   }
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+export interface ApiFetchOptions {
+  /**
+   * Skip the automatic refresh-and-retry on a 401 and surface the error
+   * directly. Use for authentication entry points (login, bootstrap) where a
+   * 401 means the credentials were rejected, not that an access token expired.
+   */
+  skipRefresh?: boolean
+}
+
+export async function apiFetch<T>(
+  path: string,
+  init: RequestInit = {},
+  options: ApiFetchOptions = {},
+): Promise<T> {
   const headers = normalizeHeaders(init.headers)
   if (!headers.has('content-type') && shouldSetJsonContentType(init.body)) {
     headers.set('Content-Type', 'application/json')
@@ -42,7 +55,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   let res = await fetch(path, opts)
 
-  if (res.status === 401) {
+  if (res.status === 401 && !options.skipRefresh) {
     if (!_refreshPromise) {
       _refreshPromise = doRefresh().finally(() => { _refreshPromise = null })
     }

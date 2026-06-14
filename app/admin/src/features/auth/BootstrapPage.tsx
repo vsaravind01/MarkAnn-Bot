@@ -14,7 +14,7 @@ export function BootstrapPage() {
 
   const mutation = useMutation({
     mutationFn: (body: typeof form) =>
-      apiFetch('/auth/admin/register', { method: 'POST', body: JSON.stringify(body) }),
+      apiFetch('/auth/admin/register', { method: 'POST', body: JSON.stringify(body) }, { skipRefresh: true }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['me'] })
       navigate('/overview')

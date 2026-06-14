@@ -24,7 +24,7 @@ export function LoginPage() {
 
   const mutation = useMutation({
     mutationFn: (body: { email: string; password: string }) =>
-      apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+      apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }, { skipRefresh: true }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['me'] })
       navigate(nextPath, { replace: true })

@@ -47,4 +47,16 @@ describe('apiFetch', () => {
     expect(result).toEqual({ ok: true })
     expect(mockFetch).toHaveBeenCalledTimes(3)
   })
+
+  it('with skipRefresh surfaces the 401 detail without refreshing', async () => {
+    mockFetch.mockResolvedValueOnce(mockResponse(401, { detail: 'Invalid credentials' }))
+    await expect(
+      apiFetch('/auth/login', { method: 'POST' }, { skipRefresh: true }),
+    ).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 401,
+      message: 'Invalid credentials',
+    })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
 })
