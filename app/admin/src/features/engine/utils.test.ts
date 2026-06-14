@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { PollerHealth } from './types'
-import { derivePollerState, formatAgo } from './utils'
+import type { PollerHealth, ProcessorHealth } from './types'
+import {
+  derivePollerDisplay,
+  derivePollerState,
+  deriveProcessorDisplay,
+  deriveProcessorState,
+  formatAgo,
+} from './utils'
 
 const NOW = 1748515200
 
@@ -8,25 +14,74 @@ beforeEach(() => {
   vi.spyOn(Date, 'now').mockReturnValue(NOW * 1000)
 })
 
-const base: PollerHealth = {
+const poller: PollerHealth = {
   api: 'corp_ann',
+  module: 'engine.pollers.corp_ann',
   heartbeat: String(NOW - 2),
   last_success: String(NOW - 2),
   status: 'running',
   error_count: 0,
   interval: 5,
+  enabled: true,
 }
 
 describe('derivePollerState', () => {
-  it('returns running when healthy', () => expect(derivePollerState(base)).toBe('running'))
+  it('returns running when healthy', () => expect(derivePollerState(poller)).toBe('running'))
+  it('returns disabled when not enabled', () =>
+    expect(derivePollerState({ ...poller, enabled: false })).toBe('disabled'))
   it('returns paused when status is paused', () =>
-    expect(derivePollerState({ ...base, status: 'paused' })).toBe('paused'))
+    expect(derivePollerState({ ...poller, status: 'paused' })).toBe('paused'))
   it('returns warn when error_count > 0 but < 10', () =>
-    expect(derivePollerState({ ...base, error_count: 3 })).toBe('warn'))
+    expect(derivePollerState({ ...poller, error_count: 3 })).toBe('warn'))
   it('returns crit when error_count >= 10', () =>
-    expect(derivePollerState({ ...base, error_count: 10 })).toBe('crit'))
+    expect(derivePollerState({ ...poller, error_count: 10 })).toBe('crit'))
   it('returns crit when heartbeat is null', () =>
-    expect(derivePollerState({ ...base, heartbeat: null })).toBe('crit'))
+    expect(derivePollerState({ ...poller, heartbeat: null })).toBe('crit'))
+})
+
+describe('derivePollerDisplay', () => {
+  it('uses module as subtitle and poller kind', () => {
+    const display = derivePollerDisplay(poller)
+    expect(display.subtitle).toBe('engine.pollers.corp_ann')
+    expect(display.kind).toBe('poller')
+    expect(display.name).toBe('corp_ann')
+  })
+})
+
+const processor: ProcessorHealth = {
+  api: 'corp_ann',
+  module: 'engine.processors.corp_ann',
+  status: 'running',
+  queue_size: 12,
+  enabled: true,
+  config: { pool_size: 8 },
+  pollers: ['corp_ann'],
+}
+
+describe('deriveProcessorState', () => {
+  it('returns running when enabled and running', () =>
+    expect(deriveProcessorState(processor)).toBe('running'))
+  it('returns disabled when not enabled', () =>
+    expect(deriveProcessorState({ ...processor, enabled: false })).toBe('disabled'))
+  it('returns paused when status is paused', () =>
+    expect(deriveProcessorState({ ...processor, status: 'paused' })).toBe('paused'))
+  it('returns crit when enabled but status unknown', () =>
+    expect(deriveProcessorState({ ...processor, status: 'unknown' })).toBe('crit'))
+})
+
+describe('deriveProcessorDisplay', () => {
+  it('exposes pool size, linked pollers, and metrics', () => {
+    const display = deriveProcessorDisplay(processor)
+    expect(display.poolSize).toBe(8)
+    expect(display.pollers).toEqual(['corp_ann'])
+    expect(display.metrics.find((metric) => metric.label === 'Workers')?.value).toBe('8')
+    expect(display.metrics.find((metric) => metric.label === 'Queue depth')?.value).toBe('12')
+  })
+
+  it('defaults pool size to 1 when config omits it', () => {
+    const display = deriveProcessorDisplay({ ...processor, config: {} })
+    expect(display.poolSize).toBe(1)
+  })
 })
 
 describe('formatAgo', () => {

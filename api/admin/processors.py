@@ -1,6 +1,7 @@
 import json
 
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field
 from redis.asyncio import Redis
 from sqlalchemy import select
 
@@ -8,6 +9,10 @@ from database.models import PollerConfig, ProcessorConfig, ProcessorPollerLink
 from database.redis import processor_status_key, queue_key
 
 router = APIRouter(tags=["admin-processors"])
+
+
+class PoolSizeUpdate(BaseModel):
+    pool_size: int = Field(ge=1, le=64)
 
 
 def _parse_config(raw: str) -> dict:
@@ -53,6 +58,7 @@ async def _processor_payloads(request: Request, *, only_api: str | None = None) 
         payloads.append(
             {
                 **health,
+                "module": processor.module,
                 "enabled": processor.enabled,
                 "config": _parse_config(processor.config),
                 "pollers": sorted(links_by_processor.get(processor.id, [])),
@@ -97,6 +103,24 @@ async def list_links(request: Request):
         for processor in processors
         if links_by_processor[processor.id]
     ]
+
+
+@router.patch("/admin/processors/{api}")
+async def resize_processor(api: str, body: PoolSizeUpdate, request: Request):
+    async with request.app.state.db_factory() as db:
+        row = (
+            await db.execute(select(ProcessorConfig).where(ProcessorConfig.api_name == api))
+        ).scalar_one_or_none()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Processor {api!r} not registered")
+
+        config = _parse_config(row.config)
+        config["pool_size"] = body.pool_size
+        row.config = json.dumps(config)
+        await db.commit()
+
+    payloads = await _processor_payloads(request, only_api=api)
+    return payloads[0]
 
 
 @router.get("/admin/processors/{api}")

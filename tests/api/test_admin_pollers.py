@@ -44,6 +44,20 @@ async def test_poller_listing_includes_enabled_and_config():
     assert body["config"] == {"base_interval": 5.0}
 
 
+async def test_poller_payload_includes_module():
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    await redis.set("poller:corp_ann:status", "running")
+    db_factory = await _make_db_factory()
+
+    from api.app import create_app
+
+    app = create_app(redis_override=redis, db_factory_override=db_factory)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/admin/pollers/corp_ann")
+    assert response.status_code == 200
+    assert response.json()["module"] == "engine.pollers.corp_ann"
+
+
 async def test_get_all_pollers_health():
     redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     await redis.set("poller:corp_ann:status", "running")

@@ -78,6 +78,7 @@ async def test_get_all_processors_health():
             "api": "corp_ann",
             "status": "running",
             "queue_size": 2,
+            "module": "engine.processors.corp_ann",
             "enabled": True,
             "config": {},
             "pollers": [],
@@ -102,10 +103,25 @@ async def test_get_single_processor_health():
         "api": "corp_ann",
         "status": "paused",
         "queue_size": 1,
+        "module": "engine.processors.corp_ann",
         "enabled": True,
         "config": {},
         "pollers": [],
     }
+
+
+async def test_processor_payload_includes_module():
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    await redis.set("processor:corp_ann:status", "running")
+    db_factory = await _make_db_factory(processor=True, poller=False)
+
+    from api.app import create_app
+
+    app = create_app(redis_override=redis, db_factory_override=db_factory)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/admin/processors/corp_ann")
+    assert response.status_code == 200
+    assert response.json()["module"] == "engine.processors.corp_ann"
 
 
 async def test_get_unknown_processor_returns_404():
@@ -205,6 +221,59 @@ async def test_processor_listing_includes_enabled_config_and_linked_pollers():
     assert body["enabled"] is True
     assert body["config"] == {"pool_size": 4}
     assert body["pollers"] == ["corp_ann"]
+
+
+async def test_resize_processor_persists_pool_size_and_preserves_config():
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with factory() as db:
+        db.add(
+            ProcessorConfig(
+                module="engine.processors.corp_ann",
+                api_name="corp_ann",
+                input_schema="{}",
+                config=json.dumps({"pool_size": 8, "keep": "me"}),
+                enabled=True,
+            )
+        )
+        await db.commit()
+
+    from api.app import create_app
+
+    app = create_app(redis_override=redis, db_factory_override=factory)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.patch("/admin/processors/corp_ann", json={"pool_size": 4})
+    assert response.status_code == 200
+    assert response.json()["config"] == {"pool_size": 4, "keep": "me"}
+
+
+async def test_resize_processor_rejects_out_of_bounds():
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    db_factory = await _make_db_factory(processor=True, poller=False)
+
+    from api.app import create_app
+
+    app = create_app(redis_override=redis, db_factory_override=db_factory)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        too_low = await client.patch("/admin/processors/corp_ann", json={"pool_size": 0})
+        too_high = await client.patch("/admin/processors/corp_ann", json={"pool_size": 65})
+    assert too_low.status_code == 422
+    assert too_high.status_code == 422
+
+
+async def test_resize_unknown_processor_returns_404():
+    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    db_factory = await _make_db_factory(processor=True, poller=False)
+
+    from api.app import create_app
+
+    app = create_app(redis_override=redis, db_factory_override=db_factory)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.patch("/admin/processors/ghost", json={"pool_size": 2})
+    assert response.status_code == 404
 
 
 async def test_links_endpoint_returns_mapping():

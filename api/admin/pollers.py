@@ -28,7 +28,12 @@ async def _poller_rows(request: Request) -> list[PollerConfig]:
 
 async def _poller_payload(redis: Redis, row: PollerConfig) -> dict:
     health = await read_health(redis, row.api_name)
-    return {**health, "enabled": row.enabled, "config": _parse_config(row.config)}
+    return {
+        **health,
+        "module": row.module,
+        "enabled": row.enabled,
+        "config": _parse_config(row.config),
+    }
 
 
 @router.get("")

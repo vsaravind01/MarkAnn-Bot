@@ -41,6 +41,15 @@
   background: var(--paused);
 }
 
+.state-pill.state-disabled {
+  color: var(--fg-3, #8a93a3);
+  background: rgba(138, 147, 163, 0.12);
+}
+
+.state-pill.state-disabled .sd {
+  background: var(--fg-3, #8a93a3);
+}
+
 .state-warn {
   background: var(--warn-soft);
   color: var(--warn);
