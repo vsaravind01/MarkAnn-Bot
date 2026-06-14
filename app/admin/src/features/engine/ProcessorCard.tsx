@@ -29,7 +29,7 @@ export function ProcessorCard({ processor }: { processor: ProcessorDisplay }) {
       {
         onSuccess: () =>
           toast.success(
-            `${processor.name} workers -> ${next} (applies on next start; Force-restart to apply now)`,
+            `${processor.name} workers → ${next} (applies on next start; Force-restart to apply now)`,
           ),
         onError: (error: Error) => toast.error(error.message),
       },
@@ -48,7 +48,7 @@ export function ProcessorCard({ processor }: { processor: ProcessorDisplay }) {
         <span className="lab">Pool size</span>
         <Stepper
           value={processor.poolSize}
-          disabled={resize.isPending}
+          disabled={resize.isPending || processor.state === 'disabled'}
           onChange={onResize}
           label={`pool size for ${processor.name}`}
         />

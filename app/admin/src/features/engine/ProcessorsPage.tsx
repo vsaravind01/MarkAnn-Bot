@@ -34,7 +34,7 @@ export function ProcessorsPage() {
       {
         onSuccess: () =>
           toast.success(
-            `${processor.name} workers -> ${next} (applies on next start; Force-restart to apply now)`,
+            `${processor.name} workers → ${next} (applies on next start; Force-restart to apply now)`,
           ),
         onError: (error: Error) => toast.error(error.message),
       },
@@ -62,7 +62,7 @@ export function ProcessorsPage() {
       render: (processor) => (
         <Stepper
           value={processor.poolSize}
-          disabled={resize.isPending}
+          disabled={resize.isPending || processor.state === 'disabled'}
           onChange={(next) => fireResize(processor, next)}
           label={`workers for ${processor.name}`}
         />
