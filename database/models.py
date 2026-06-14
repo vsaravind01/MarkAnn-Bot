@@ -96,3 +96,49 @@ class Announcement(Base):
     attachment_url: Mapped[str] = mapped_column(Text, nullable=False)
     announced_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     processed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class PollerConfig(Base):
+    __tablename__ = "poller_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    module: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    api_name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    output_schema: Mapped[str] = mapped_column(Text, nullable=False)
+    config: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ProcessorConfig(Base):
+    __tablename__ = "processor_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    module: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    api_name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    input_schema: Mapped[str] = mapped_column(Text, nullable=False)
+    config: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ProcessorPollerLink(Base):
+    __tablename__ = "processor_poller_link"
+
+    processor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("processor_config.id"), primary_key=True
+    )
+    poller_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("poller_config.id"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

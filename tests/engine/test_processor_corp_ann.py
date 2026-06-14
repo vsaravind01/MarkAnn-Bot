@@ -10,8 +10,13 @@ from sqlalchemy import select
 from database.models import Announcement
 from database.redis import dedup_key, result_key
 from engine.events import read_events
-from engine.processor.corp_ann import ANNOUNCEMENT_CATEGORIES, CorporateAnnouncementsProcessor
-from engine.processor.pdf import RenderedPdfPages
+from engine.processors.base import ProcessorBase
+from engine.processors.corp_ann import (
+    ANNOUNCEMENT_CATEGORIES,
+    CorporateAnnouncementsProcessor,
+    InputSchema,
+)
+from engine.processors.pdf import RenderedPdfPages
 from llm.provider import AnnouncementAnalysis, LLMContextWindowError, LLMResponseFormatError
 
 SAMPLE_ITEM = {
@@ -22,6 +27,21 @@ SAMPLE_ITEM = {
     "attchmntFile": "https://nsearchives.nseindia.com/test.pdf",
     "an_dt": "28-May-2026 10:00:00",
 }
+
+
+def test_input_schema_declares_required_fields():
+    props = InputSchema.model_json_schema()["properties"]
+    for field in ("seq_id", "symbol", "sm_name", "attchmntFile", "attchmntText", "an_dt"):
+        assert field in props
+        assert props[field]["type"] == "string"
+
+
+def test_processor_subclasses_processor_base():
+    assert issubclass(CorporateAnnouncementsProcessor, ProcessorBase)
+
+
+def test_processor_default_config_has_pool_size():
+    assert CorporateAnnouncementsProcessor.default_config() == {"pool_size": 8}
 
 
 def _make_pdf_bytes(page_count: int) -> bytes:
@@ -514,7 +534,7 @@ async def test_empty_rendered_batch_falls_back_to_text_analysis(
         del args, kwargs
         return RenderedPdfPages(total_pages=2, pages=[])
 
-    monkeypatch.setattr("engine.processor.corp_ann.render_pdf_pages", _render_no_pages)
+    monkeypatch.setattr("engine.processors.corp_ann.render_pdf_pages", _render_no_pages)
 
     mock_llm = AsyncMock()
     mock_llm.analyze_text_announcement.return_value = AnnouncementAnalysis(
@@ -621,7 +641,7 @@ async def test_text_fallback_truncates_and_retries_response_format(
             request=pdf_request,
         )
     )
-    monkeypatch.setattr("engine.processor.corp_ann._MAX_TEXT_CHARS", 10)
+    monkeypatch.setattr("engine.processors.corp_ann._MAX_TEXT_CHARS", 10)
 
     mock_llm = AsyncMock()
     mock_llm.analyze_announcement.side_effect = LLMContextWindowError("force text fallback")

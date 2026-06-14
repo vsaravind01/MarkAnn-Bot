@@ -18,6 +18,14 @@ class LLMContextWindowError(LLMProviderError):
     """Raised when the prompt payload exceeds the model context window."""
 
 
+class LLMRateLimitError(LLMProviderError):
+    """Raised when the provider asks callers to retry later."""
+
+    def __init__(self, message: str, *, retry_after: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 @dataclass(slots=True, frozen=True)
 class AnnouncementPageImage:
     """Image payload for a single announcement page."""

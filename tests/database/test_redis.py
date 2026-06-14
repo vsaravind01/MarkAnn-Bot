@@ -1,6 +1,8 @@
 from database.redis import (
     alert_channel,
     dedup_key,
+    inflight_key,
+    queue_key,
     result_key,
     seconds_until_midnight,
     user_channels_key,
@@ -28,6 +30,14 @@ def test_user_channels_key():
 
 def test_alert_channel():
     assert alert_channel("INFY") == "alerts:INFY"
+
+
+def test_queue_key():
+    assert queue_key("corp_ann") == "queue:corp_ann"
+
+
+def test_inflight_key():
+    assert inflight_key("corp_ann", "abc123") == "inflight:corp_ann:abc123"
 
 
 def test_seconds_until_midnight_positive():

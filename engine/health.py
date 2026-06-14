@@ -8,6 +8,7 @@ from database.redis import (
     poller_interval_key,
     poller_last_success_key,
     poller_status_key,
+    processor_status_key,
 )
 
 
@@ -30,6 +31,10 @@ async def write_error_count(redis: Redis, api: str, count: int) -> None:
 
 async def write_interval(redis: Redis, api: str, interval: float) -> None:
     await redis.set(poller_interval_key(api), str(interval))
+
+
+async def write_processor_status(redis: Redis, api: str, status: str) -> None:
+    await redis.set(processor_status_key(api), status)
 
 
 async def read_health(redis: Redis, api: str) -> dict:

@@ -43,6 +43,14 @@ def alert_channel(symbol: str) -> str:
     return f"alerts:{symbol}"
 
 
+def queue_key(api: str) -> str:
+    return f"queue:{api}"
+
+
+def inflight_key(api: str, item_id: str) -> str:
+    return f"inflight:{api}:{item_id}"
+
+
 def poller_heartbeat_key(api: str) -> str:
     return f"poller:{api}:heartbeat"
 
@@ -61,3 +69,7 @@ def poller_error_count_key(api: str) -> str:
 
 def poller_interval_key(api: str) -> str:
     return f"poller:{api}:interval"
+
+
+def processor_status_key(api: str) -> str:
+    return f"processor:{api}:status"

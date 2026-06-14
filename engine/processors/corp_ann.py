@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from functools import partial
 
 import pytz
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models import Announcement
@@ -17,7 +18,8 @@ from database.redis import (
     seconds_until_midnight,
 )
 from engine.events import push_event
-from engine.processor.pdf import extract_pdf_text, render_pdf_pages
+from engine.processors.base import ProcessorBase
+from engine.processors.pdf import extract_pdf_text, render_pdf_pages
 from engine.session import NseSession
 from llm.provider import (
     AnnouncementAnalysis,
@@ -57,6 +59,17 @@ _PROCESSING_MODE_MULTIMODAL = "multimodal"
 _PROCESSING_MODE_TEXT = "text"
 
 
+class InputSchema(BaseModel):
+    """Fields the corp_ann processor requires from its poller."""
+
+    seq_id: str
+    symbol: str
+    sm_name: str
+    attchmntFile: str
+    attchmntText: str
+    an_dt: str
+
+
 def _parse_nse_datetime(dt_str: str | None, *, default: datetime) -> datetime:
     if not isinstance(dt_str, str):
         logger.warning("Invalid NSE datetime value %r; using default timestamp", dt_str)
@@ -81,7 +94,11 @@ def _should_release_dedup_key_after_error(
     return True
 
 
-class CorporateAnnouncementsProcessor:
+class CorporateAnnouncementsProcessor(ProcessorBase):
+    @classmethod
+    def default_config(cls) -> dict:
+        return {"pool_size": 8}
+
     def __init__(
         self,
         redis,
@@ -430,3 +447,6 @@ class CorporateAnnouncementsProcessor:
                 announcement_text=announcement_text,
                 response_format_retry=True,
             )
+
+
+Processor = CorporateAnnouncementsProcessor

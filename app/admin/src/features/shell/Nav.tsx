@@ -1,10 +1,9 @@
 import {
   Activity,
-  Boxes,
+  Cpu,
   Gauge,
   type LucideIcon,
   Radio,
-  Server,
   Settings,
   Shield,
   TriangleAlert,
@@ -12,6 +11,7 @@ import {
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { usePollers } from '../engine/usePollers'
+import { useProcessors } from '../engine/useProcessors'
 
 interface NavItemDef {
   to: string
@@ -22,7 +22,10 @@ interface NavItemDef {
 
 export function Nav({ role }: { role: string }) {
   const { data: pollers = [] } = usePollers()
-  const alarmCount = pollers.filter((p) => p.state === 'crit' || p.state === 'warn').length
+  const { data: processors = [] } = useProcessors()
+  const alarmCount =
+    pollers.filter((poller) => poller.state === 'crit' || poller.state === 'warn').length +
+    processors.filter((processor) => processor.state === 'crit').length
 
   function item({ to, icon: Icon, label, alarmCount: count }: NavItemDef) {
     return (
@@ -61,13 +64,12 @@ export function Nav({ role }: { role: string }) {
       </div>
 
       {item({ to: '/overview', icon: Gauge, label: 'Overview' })}
-      {item({ to: '/components', icon: Server, label: 'Components' })}
       {item({ to: '/alarms', icon: TriangleAlert, label: 'Alarms', alarmCount })}
       {item({ to: '/events', icon: Activity, label: 'Event log' })}
 
       <div className="sec-label">Engine</div>
       {item({ to: '/engine/pollers', icon: Radio, label: 'Pollers' })}
-      {item({ to: '/engine/pools', icon: Boxes, label: 'Worker pools' })}
+      {item({ to: '/engine/processors', icon: Cpu, label: 'Processors' })}
 
       {(role === 'admin' || role === 'superuser') && (
         <>

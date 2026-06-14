@@ -1,5 +1,6 @@
 import asyncio
 import time
+from contextlib import suppress
 from unittest.mock import AsyncMock
 
 from engine.supervisor import Watchdog
@@ -18,12 +19,10 @@ async def test_watchdog_restarts_on_missing_heartbeat(fake_redis):
     task = asyncio.create_task(watchdog.run())
     await asyncio.sleep(0.15)
     task.cancel()
-    try:
+    with suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass
 
-    supervisor.restart.assert_called_with("corp_ann")
+    supervisor.restart.assert_called_with("poller:corp_ann")
 
 
 async def test_watchdog_does_not_restart_with_valid_heartbeat(fake_redis):
@@ -40,10 +39,8 @@ async def test_watchdog_does_not_restart_with_valid_heartbeat(fake_redis):
     task = asyncio.create_task(watchdog.run())
     await asyncio.sleep(0.15)
     task.cancel()
-    try:
+    with suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass
 
     supervisor.restart.assert_not_called()
 
@@ -65,10 +62,8 @@ async def test_watchdog_logs_silence_alert_without_restart(fake_redis, caplog):
         task = asyncio.create_task(watchdog.run())
         await asyncio.sleep(0.15)
         task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await task
-        except asyncio.CancelledError:
-            pass
 
     supervisor.restart.assert_not_called()
     assert any("manual review" in r.message for r in caplog.records)

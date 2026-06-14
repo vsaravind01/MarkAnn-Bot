@@ -9,9 +9,6 @@ import { ToastProvider } from './features/shell/Toast'
 const OverviewPage = lazy(() =>
   import('./features/engine/OverviewPage').then((m) => ({ default: m.OverviewPage })),
 )
-const ComponentsPage = lazy(() =>
-  import('./features/engine/ComponentsPage').then((m) => ({ default: m.ComponentsPage })),
-)
 const AlarmsPage = lazy(() =>
   import('./features/engine/AlarmsPage').then((m) => ({ default: m.AlarmsPage })),
 )
@@ -21,8 +18,8 @@ const EventLogPage = lazy(() =>
 const PollersPage = lazy(() =>
   import('./features/engine/PollersPage').then((m) => ({ default: m.PollersPage })),
 )
-const PoolsPage = lazy(() =>
-  import('./features/engine/PoolsPage').then((m) => ({ default: m.PoolsPage })),
+const ProcessorsPage = lazy(() =>
+  import('./features/engine/ProcessorsPage').then((m) => ({ default: m.ProcessorsPage })),
 )
 const TradersPage = lazy(() =>
   import('./features/users/TradersPage').then((m) => ({ default: m.TradersPage })),
@@ -43,11 +40,12 @@ export function App() {
               <Route element={<ShellLayout />}>
                 <Route index element={<Navigate to="/overview" replace />} />
                 <Route path="overview" element={<OverviewPage />} />
-                <Route path="components" element={<ComponentsPage />} />
+                <Route path="components" element={<Navigate to="/overview" replace />} />
                 <Route path="alarms" element={<AlarmsPage />} />
                 <Route path="events" element={<EventLogPage />} />
                 <Route path="engine/pollers" element={<PollersPage />} />
-                <Route path="engine/pools" element={<PoolsPage />} />
+                <Route path="engine/pools" element={<Navigate to="/engine/processors" replace />} />
+                <Route path="engine/processors" element={<ProcessorsPage />} />
                 <Route element={<AuthGuard requiredRole="admin" />}>
                   <Route path="users/traders" element={<TradersPage />} />
                 </Route>

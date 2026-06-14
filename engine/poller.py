@@ -1,10 +1,13 @@
 import asyncio
+import hashlib
+import json
 import logging
 from abc import ABC, abstractmethod
 
 import httpx
 from redis.asyncio import Redis
 
+from database.redis import inflight_key, queue_key
 from engine.circuit_breaker import CircuitBreaker
 from engine.events import push_event
 from engine.health import (
@@ -23,7 +26,6 @@ class Poller(ABC):
     def __init__(
         self,
         api_name: str,
-        queue: asyncio.Queue,
         session: NseSession,
         redis: Redis,
         base_interval: float = 5.0,
@@ -32,7 +34,6 @@ class Poller(ABC):
         circuit_hold_off: float = 300.0,
     ) -> None:
         self.api_name = api_name
-        self.queue = queue
         self.session = session
         self.redis = redis
         self.base_interval = base_interval
@@ -41,6 +42,9 @@ class Poller(ABC):
         self._circuit = CircuitBreaker(failure_threshold, circuit_hold_off)
         self._consecutive_failures = 0
         self._running = False
+
+    def item_id(self, item: dict) -> str:
+        return hashlib.sha1(json.dumps(item, sort_keys=True).encode()).hexdigest()[:16]
 
     @abstractmethod
     async def fetch(self) -> list[dict]:
@@ -68,7 +72,16 @@ class Poller(ABC):
                 if data:
                     await write_last_success(self.redis, self.api_name)
                     for item in data:
-                        await self.queue.put(item)
+                        item_id = self.item_id(item)
+                        acquired = await self.redis.set(
+                            inflight_key(self.api_name, item_id),
+                            "1",
+                            ex=3600,
+                            nx=True,
+                        )
+                        if not acquired:
+                            continue
+                        await self.redis.rpush(queue_key(self.api_name), json.dumps(item))
 
                 await write_status(self.redis, self.api_name, "running")
                 await asyncio.sleep(self._current_interval)
@@ -92,19 +105,21 @@ class Poller(ABC):
         status = "circuit_open" if self._circuit.is_open else "backing_off"
         await write_status(self.redis, self.api_name, status)
         logger.error(
-            f"Poller {self.api_name!r} error: {exc!r}. Interval → {self._current_interval}s"
+            f"Poller {self.api_name!r} error: {exc!r}. Interval -> {self._current_interval}s"
         )
         exc_summary = f"{type(exc).__name__}: {str(exc)[:120]}"
         if self._circuit.is_open:
             await push_event(
-                self.redis, "crit",
-                f"circuit opened after {self._consecutive_failures} consecutive failures — {exc_summary}",
+                self.redis,
+                "crit",
+                f"circuit opened after {self._consecutive_failures} consecutive failures - {exc_summary}",
                 api=self.api_name,
             )
         else:
             await push_event(
-                self.redis, "warn",
-                f"fetch error #{self._consecutive_failures} — {exc_summary}",
+                self.redis,
+                "warn",
+                f"fetch error #{self._consecutive_failures} - {exc_summary}",
                 api=self.api_name,
             )
         await asyncio.sleep(self._current_interval)

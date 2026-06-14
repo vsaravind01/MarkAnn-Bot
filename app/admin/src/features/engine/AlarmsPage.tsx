@@ -1,15 +1,13 @@
-import { ComponentCard } from './ComponentCard'
+import { PollerCard } from './PollerCard'
 import './engine.css'
 import { usePollers } from './usePollers'
-import { usePools } from './usePools'
 
 export function AlarmsPage() {
   const { data: pollers = [], isLoading, isError } = usePollers()
-  const alarms = pollers.filter((p) => p.state === 'crit' || p.state === 'warn')
-  const { poolSizes, isError: poolsError } = usePools(alarms.map((p) => p.id))
+  const alarms = pollers.filter((poller) => poller.state === 'crit' || poller.state === 'warn')
 
   if (isLoading) return <div className="loading-screen">Loading…</div>
-  if (isError || poolsError) return <div className="empty-state">Unable to load alarms right now.</div>
+  if (isError) return <div className="empty-state">Unable to load alarms right now.</div>
 
   return (
     <div>
@@ -21,8 +19,8 @@ export function AlarmsPage() {
         <div className="empty-state">No active alarms. All components nominal.</div>
       ) : (
         <div className="grid">
-          {alarms.map((p) => (
-            <ComponentCard key={p.id} poller={p} poolSize={poolSizes.get(p.poolSizeKey)} />
+          {alarms.map((poller) => (
+            <PollerCard key={poller.id} poller={poller} />
           ))}
         </div>
       )}

@@ -1,7 +1,7 @@
 import fitz
 import pytest
 
-from engine.processor.pdf import extract_pdf_text, render_pdf_pages
+from engine.processors.pdf import extract_pdf_text, render_pdf_pages
 
 
 def _make_pdf(page_count: int) -> bytes:
