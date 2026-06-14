@@ -1,3 +1,4 @@
+import asyncio
 import os
 from collections.abc import Sequence
 
@@ -7,9 +8,12 @@ from llm.provider import (
     AnnouncementAnalysis,
     AnnouncementPageImage,
     LLMContextWindowError,
+    LLMRateLimitError,
     LLMResponseFormatError,
     parse_analysis_json,
 )
+
+_MAX_INLINE_RETRY_WAIT = 60.0
 
 _ANALYSIS_SYSTEM = (
     "You are a financial analyst for Indian stock market announcements. "
@@ -102,9 +106,36 @@ class AnthropicProvider:
                 messages=[{"role": "user", "content": content}],
             )
         except Exception as exc:
-            if _is_context_window_error(exc):
+            if _is_rate_limit_error(exc):
+                retry_after = _extract_retry_after(exc)
+                if retry_after is not None and retry_after <= _MAX_INLINE_RETRY_WAIT:
+                    await asyncio.sleep(retry_after)
+                    try:
+                        message = await self._client.messages.create(
+                            model=self._model,
+                            max_tokens=512,
+                            system=_ANALYSIS_SYSTEM,
+                            messages=[{"role": "user", "content": content}],
+                        )
+                    except Exception as exc2:
+                        if _is_rate_limit_error(exc2):
+                            raise LLMRateLimitError(
+                                "Rate limited by Anthropic after retry.",
+                                retry_after=_extract_retry_after(exc2),
+                            ) from exc2
+                        if _is_context_window_error(exc2):
+                            raise LLMContextWindowError(
+                                "Prompt exceeds the model context window."
+                            ) from exc2
+                        raise
+                else:
+                    raise LLMRateLimitError(
+                        "Rate limited by Anthropic.", retry_after=retry_after
+                    ) from exc
+            elif _is_context_window_error(exc):
                 raise LLMContextWindowError("Prompt exceeds the model context window.") from exc
-            raise
+            else:
+                raise
 
         if not message.content:
             raise LLMResponseFormatError("Anthropic returned no content blocks.")
@@ -183,6 +214,22 @@ def _build_text_prompt(
         f"Announcement content:\n{text}\n"
         f"{retry_instruction}"
     )
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    return isinstance(exc, _anthropic.RateLimitError)
+
+
+def _extract_retry_after(exc: Exception) -> float | None:
+    headers = getattr(getattr(exc, "response", None), "headers", None) or {}
+    for key in ("retry-after", "Retry-After"):
+        value = headers.get(key)
+        if value:
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                pass
+    return None
 
 
 def _is_context_window_error(exc: Exception) -> bool:

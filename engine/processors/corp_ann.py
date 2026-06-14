@@ -27,6 +27,7 @@ from llm.provider import (
     LLMContextWindowError,
     LLMProvider,
     LLMProviderError,
+    LLMRateLimitError,
     LLMResponseFormatError,
 )
 
@@ -251,6 +252,8 @@ class CorporateAnnouncementsProcessor(ProcessorBase):
                 loop=loop,
             )
             return analysis, _PROCESSING_MODE_MULTIMODAL
+        except LLMRateLimitError:
+            raise  # both paths share the same API; text fallback would also be rate-limited
         except LLMProviderError as exc:
             logger.warning(
                 "seq_id=%s multimodal analysis failed, falling back to text analysis: %s",

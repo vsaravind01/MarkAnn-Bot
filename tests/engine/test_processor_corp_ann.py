@@ -17,7 +17,12 @@ from engine.processors.corp_ann import (
     InputSchema,
 )
 from engine.processors.pdf import RenderedPdfPages
-from llm.provider import AnnouncementAnalysis, LLMContextWindowError, LLMResponseFormatError
+from llm.provider import (
+    AnnouncementAnalysis,
+    LLMContextWindowError,
+    LLMRateLimitError,
+    LLMResponseFormatError,
+)
 
 SAMPLE_ITEM = {
     "seq_id": "106644730",
@@ -784,3 +789,64 @@ async def test_announcement_categories_list():
     assert "financial_results" in ANNOUNCEMENT_CATEGORIES
     assert "acquisition" in ANNOUNCEMENT_CATEGORIES
     assert len(ANNOUNCEMENT_CATEGORIES) == 7
+
+
+async def test_rate_limit_error_does_not_trigger_text_fallback(fake_redis, async_db_session):
+    """LLMRateLimitError from multimodal must NOT fall back to text — both paths share the same API."""
+    pdf_bytes = _make_pdf_bytes(page_count=2)
+    pdf_request = httpx.Request("GET", "https://nsearchives.nseindia.com/test.pdf")
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(
+        return_value=httpx.Response(
+            200,
+            content=pdf_bytes,
+            headers={"content-type": "application/pdf"},
+            request=pdf_request,
+        )
+    )
+
+    mock_llm = AsyncMock()
+    mock_llm.analyze_announcement.side_effect = LLMRateLimitError(
+        "Rate limited.", retry_after=120.0
+    )
+
+    pool = ProcessPoolExecutor(max_workers=1)
+    processor = CorporateAnnouncementsProcessor(
+        redis=fake_redis, db=async_db_session, llm=mock_llm, process_pool=pool, session=mock_session
+    )
+
+    with pytest.raises(LLMRateLimitError):
+        await processor.process(SAMPLE_ITEM)
+
+    mock_llm.analyze_text_announcement.assert_not_awaited()
+    assert await fake_redis.exists(dedup_key("corp_ann", SAMPLE_ITEM["seq_id"])) == 0
+    pool.shutdown(wait=False)
+
+
+async def test_rate_limit_error_releases_dedup_key_and_propagates(fake_redis, async_db_session):
+    """LLMRateLimitError must propagate out of process() and release the dedup key for retry."""
+    pdf_bytes = _make_pdf_bytes(page_count=1)
+    pdf_request = httpx.Request("GET", "https://nsearchives.nseindia.com/test.pdf")
+    mock_session = MagicMock()
+    mock_session.get = AsyncMock(
+        return_value=httpx.Response(
+            200,
+            content=pdf_bytes,
+            headers={"content-type": "application/pdf"},
+            request=pdf_request,
+        )
+    )
+
+    mock_llm = AsyncMock()
+    mock_llm.analyze_announcement.side_effect = LLMRateLimitError("Rate limited.")
+
+    pool = ProcessPoolExecutor(max_workers=1)
+    processor = CorporateAnnouncementsProcessor(
+        redis=fake_redis, db=async_db_session, llm=mock_llm, process_pool=pool, session=mock_session
+    )
+
+    with pytest.raises(LLMRateLimitError):
+        await processor.process(SAMPLE_ITEM)
+
+    assert await fake_redis.exists(dedup_key("corp_ann", SAMPLE_ITEM["seq_id"])) == 0
+    pool.shutdown(wait=False)

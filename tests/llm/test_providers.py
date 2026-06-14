@@ -7,7 +7,12 @@ from llm.anthropic import AnthropicProvider
 from llm.factory import get_provider
 from llm.gemini import GeminiProvider
 from llm.openai import OpenAIProvider
-from llm.provider import LLMContextWindowError, LLMResponseFormatError, parse_analysis_json
+from llm.provider import (
+    LLMContextWindowError,
+    LLMRateLimitError,
+    LLMResponseFormatError,
+    parse_analysis_json,
+)
 
 _ANALYSIS_JSON = """
 {
@@ -422,3 +427,280 @@ def test_factory_invalid(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "unknown")
     with pytest.raises(ValueError, match="Unknown LLM_PROVIDER"):
         get_provider()
+
+
+# ---------------------------------------------------------------------------
+# Rate-limit handling — OpenAI
+# ---------------------------------------------------------------------------
+
+def _make_openai_rate_limit_error(retry_after: float | None = None) -> Exception:
+    from openai import RateLimitError
+
+    response = MagicMock()
+    response.headers = {"retry-after": str(retry_after)} if retry_after is not None else {}
+    response.status_code = 429
+    return RateLimitError("rate limit exceeded", response=response, body=None)
+
+
+async def test_openai_rate_limit_raises_llm_rate_limit_error():
+    """When rate-limited with no short retry-after, LLMRateLimitError is raised immediately."""
+    with patch("llm.openai.AsyncOpenAI") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_openai_rate_limit_error(retry_after=None)
+        )
+        mock_cls.return_value = mock_client
+        provider = OpenAIProvider(api_key="test-key")
+        with pytest.raises(LLMRateLimitError) as exc_info:
+            await provider.analyze_text_announcement(
+                text="Q4 results...",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Quarterly earnings release",
+            )
+    assert exc_info.value.retry_after is None
+    assert mock_client.chat.completions.create.call_count == 1
+
+
+async def test_openai_rate_limit_retry_after_extracted():
+    """retry_after is parsed from the response Retry-After header."""
+    with patch("llm.openai.AsyncOpenAI") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=_make_openai_rate_limit_error(retry_after=120.0)
+        )
+        mock_cls.return_value = mock_client
+        provider = OpenAIProvider(api_key="test-key")
+        with pytest.raises(LLMRateLimitError) as exc_info:
+            await provider.analyze_text_announcement(
+                text="Q4 results...",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Quarterly earnings release",
+            )
+    assert exc_info.value.retry_after == 120.0
+    assert mock_client.chat.completions.create.call_count == 1
+
+
+async def test_openai_rate_limit_inline_retry_succeeds(mock_sleep):
+    """When retry-after <= 60s, the provider sleeps and retries; success on retry returns normally."""
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.content = _ANALYSIS_JSON
+    with patch("llm.openai.AsyncOpenAI") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=[
+                _make_openai_rate_limit_error(retry_after=5.0),
+                mock_response,
+            ]
+        )
+        mock_cls.return_value = mock_client
+        provider = OpenAIProvider(api_key="test-key")
+        result = await provider.analyze_text_announcement(
+            text="Q4 results...",
+            categories=["financial_results"],
+            symbol="INFY",
+            company="Infosys Ltd",
+            announcement_text="Quarterly earnings release",
+        )
+    assert result.category == "financial_results"
+    assert mock_client.chat.completions.create.call_count == 2
+    mock_sleep.assert_awaited_once_with(5.0)
+
+
+async def test_openai_rate_limit_inline_retry_also_rate_limits(mock_sleep):
+    """When the retry also rate-limits, LLMRateLimitError is raised with the new retry_after."""
+    with patch("llm.openai.AsyncOpenAI") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=[
+                _make_openai_rate_limit_error(retry_after=10.0),
+                _make_openai_rate_limit_error(retry_after=30.0),
+            ]
+        )
+        mock_cls.return_value = mock_client
+        provider = OpenAIProvider(api_key="test-key")
+        with pytest.raises(LLMRateLimitError) as exc_info:
+            await provider.analyze_text_announcement(
+                text="Q4 results...",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Quarterly earnings release",
+            )
+    assert exc_info.value.retry_after == 30.0
+    assert mock_client.chat.completions.create.call_count == 2
+    mock_sleep.assert_awaited_once_with(10.0)
+
+
+# ---------------------------------------------------------------------------
+# Rate-limit handling — Anthropic
+# ---------------------------------------------------------------------------
+
+def _make_anthropic_rate_limit_error(retry_after: float | None = None) -> Exception:
+    response = MagicMock()
+    response.headers = {"retry-after": str(retry_after)} if retry_after is not None else {}
+    response.status_code = 429
+    return MagicMock(
+        spec=Exception,
+        __class__=__import__("anthropic").RateLimitError,
+        response=response,
+    )
+
+
+async def test_anthropic_rate_limit_raises_llm_rate_limit_error():
+    with patch("llm.anthropic._anthropic.AsyncAnthropic") as mock_cls:
+        mock_client = AsyncMock()
+        import anthropic as _ant
+
+        mock_client.messages.create = AsyncMock(
+            side_effect=_ant.RateLimitError(
+                "rate limit",
+                response=MagicMock(headers={}, status_code=429),
+                body=None,
+            )
+        )
+        mock_cls.return_value = mock_client
+        provider = AnthropicProvider(api_key="test-key")
+        with pytest.raises(LLMRateLimitError):
+            await provider.analyze_text_announcement(
+                text="Launch of new product...",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Product launch",
+            )
+    assert mock_client.messages.create.call_count == 1
+
+
+async def test_anthropic_rate_limit_inline_retry_succeeds(mock_sleep):
+    import anthropic as _ant
+
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock()]
+    mock_response.content[0].type = "text"
+    mock_response.content[0].text = _ANALYSIS_JSON
+    with patch("llm.anthropic._anthropic.AsyncAnthropic") as mock_cls:
+        mock_client = AsyncMock()
+        rate_limit_exc = _ant.RateLimitError(
+            "rate limit",
+            response=MagicMock(headers={"retry-after": "15"}, status_code=429),
+            body=None,
+        )
+        mock_client.messages.create = AsyncMock(
+            side_effect=[rate_limit_exc, mock_response]
+        )
+        mock_cls.return_value = mock_client
+        provider = AnthropicProvider(api_key="test-key")
+        result = await provider.analyze_text_announcement(
+            text="Launch of new product...",
+            categories=["financial_results"],
+            symbol="INFY",
+            company="Infosys Ltd",
+            announcement_text="Product launch",
+        )
+    assert result.category == "financial_results"
+    assert mock_client.messages.create.call_count == 2
+    mock_sleep.assert_awaited_once_with(15.0)
+
+
+# ---------------------------------------------------------------------------
+# Rate-limit handling — Gemini
+# ---------------------------------------------------------------------------
+
+def _make_gemini_rate_limit_error(retry_after_seconds: float | None = None) -> Exception:
+    from google.genai.errors import ClientError
+
+    details = []
+    if retry_after_seconds is not None:
+        details.append({"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": f"{int(retry_after_seconds)}s"})
+    response_json = {
+        "error": {
+            "code": 429,
+            "message": "You exceeded your current quota.",
+            "status": "RESOURCE_EXHAUSTED",
+            "details": details,
+        }
+    }
+    return ClientError(429, response_json, MagicMock())
+
+
+async def test_gemini_rate_limit_raises_llm_rate_limit_error():
+    with patch("llm.gemini.genai") as mock_genai:
+        mock_client = MagicMock()
+        mock_client.aio.models.generate_content = AsyncMock(
+            side_effect=_make_gemini_rate_limit_error()
+        )
+        mock_genai.Client.return_value = mock_client
+        provider = GeminiProvider(api_key="test-key")
+        with pytest.raises(LLMRateLimitError):
+            await provider.analyze_text_announcement(
+                text="Long prompt",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Long prompt",
+            )
+    assert mock_client.aio.models.generate_content.call_count == 1
+
+
+async def test_gemini_rate_limit_retry_after_extracted_from_string():
+    """retry_after is parsed from the retryDelay field in the error string."""
+    with patch("llm.gemini.genai") as mock_genai:
+        mock_client = MagicMock()
+        mock_client.aio.models.generate_content = AsyncMock(
+            side_effect=_make_gemini_rate_limit_error(retry_after_seconds=54.0)
+        )
+        mock_genai.Client.return_value = mock_client
+        provider = GeminiProvider(api_key="test-key")
+        with pytest.raises(LLMRateLimitError) as exc_info:
+            await provider.analyze_text_announcement(
+                text="Long prompt",
+                categories=["financial_results"],
+                symbol="INFY",
+                company="Infosys Ltd",
+                announcement_text="Long prompt",
+            )
+    assert exc_info.value.retry_after == 54.0
+
+
+async def test_gemini_rate_limit_inline_retry_succeeds(mock_sleep):
+    mock_response = MagicMock()
+    mock_response.text = _ANALYSIS_JSON
+    with patch("llm.gemini.genai") as mock_genai:
+        mock_client = MagicMock()
+        mock_client.aio.models.generate_content = AsyncMock(
+            side_effect=[
+                _make_gemini_rate_limit_error(retry_after_seconds=30.0),
+                mock_response,
+            ]
+        )
+        mock_genai.Client.return_value = mock_client
+        provider = GeminiProvider(api_key="test-key")
+        result = await provider.analyze_text_announcement(
+            text="Launch of new product...",
+            categories=["financial_results"],
+            symbol="INFY",
+            company="Infosys Ltd",
+            announcement_text="Product launch",
+        )
+    assert result.category == "financial_results"
+    assert mock_client.aio.models.generate_content.call_count == 2
+    mock_sleep.assert_awaited_once_with(30.0)
+
+
+# ---------------------------------------------------------------------------
+# Shared fixture
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mock_sleep(monkeypatch):
+    """Replace asyncio.sleep in all provider modules with a no-op."""
+    sleep_mock = AsyncMock()
+    monkeypatch.setattr("llm.openai.asyncio.sleep", sleep_mock)
+    monkeypatch.setattr("llm.anthropic.asyncio.sleep", sleep_mock)
+    monkeypatch.setattr("llm.gemini.asyncio.sleep", sleep_mock)
+    return sleep_mock

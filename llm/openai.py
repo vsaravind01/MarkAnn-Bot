@@ -1,15 +1,19 @@
+import asyncio
 import os
 from collections.abc import Sequence
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, RateLimitError
 
 from llm.provider import (
     AnnouncementAnalysis,
     AnnouncementPageImage,
     LLMContextWindowError,
+    LLMRateLimitError,
     LLMResponseFormatError,
     parse_analysis_json,
 )
+
+_MAX_INLINE_RETRY_WAIT = 60.0
 
 _ANALYSIS_SYSTEM = (
     "You are a financial analyst for Indian stock market announcements. "
@@ -115,9 +119,36 @@ class OpenAIProvider:
                 response_format={"type": "json_object"},
             )
         except Exception as exc:
-            if _is_context_window_error(exc):
+            if _is_rate_limit_error(exc):
+                retry_after = _extract_retry_after(exc)
+                if retry_after is not None and retry_after <= _MAX_INLINE_RETRY_WAIT:
+                    await asyncio.sleep(retry_after)
+                    try:
+                        response = await self._client.chat.completions.create(
+                            model=self._model,
+                            messages=messages,
+                            max_tokens=512,
+                            response_format={"type": "json_object"},
+                        )
+                    except Exception as exc2:
+                        if _is_rate_limit_error(exc2):
+                            raise LLMRateLimitError(
+                                "Rate limited by OpenAI after retry.",
+                                retry_after=_extract_retry_after(exc2),
+                            ) from exc2
+                        if _is_context_window_error(exc2):
+                            raise LLMContextWindowError(
+                                "Prompt exceeds the model context window."
+                            ) from exc2
+                        raise
+                else:
+                    raise LLMRateLimitError(
+                        "Rate limited by OpenAI.", retry_after=retry_after
+                    ) from exc
+            elif _is_context_window_error(exc):
                 raise LLMContextWindowError("Prompt exceeds the model context window.") from exc
-            raise
+            else:
+                raise
 
         choices = getattr(response, "choices", None)
         if not isinstance(choices, Sequence) or isinstance(choices, (str, bytes)) or not choices:
@@ -130,6 +161,22 @@ class OpenAIProvider:
         if not content:
             raise LLMResponseFormatError("OpenAI returned empty content.")
         return content
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    return isinstance(exc, RateLimitError)
+
+
+def _extract_retry_after(exc: Exception) -> float | None:
+    headers = getattr(getattr(exc, "response", None), "headers", None) or {}
+    for key in ("retry-after", "Retry-After", "x-ratelimit-reset-requests"):
+        value = headers.get(key)
+        if value:
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                pass
+    return None
 
 
 def _build_announcement_prompt(

@@ -1,17 +1,23 @@
+import asyncio
 import base64
 import os
+import re
 from collections.abc import Sequence
 
 from google import genai
+from google.genai import errors as _genai_errors
 from google.genai import types
 
 from llm.provider import (
     AnnouncementAnalysis,
     AnnouncementPageImage,
     LLMContextWindowError,
+    LLMRateLimitError,
     LLMResponseFormatError,
     parse_analysis_json,
 )
+
+_MAX_INLINE_RETRY_WAIT = 60.0
 
 _ANALYSIS_INSTRUCTIONS = (
     "You are a financial analyst for Indian stock market announcements. "
@@ -94,9 +100,37 @@ class GeminiProvider:
                 config=types.GenerateContentConfig(response_mime_type="application/json"),
             )
         except Exception as exc:
-            if _is_context_window_error(exc):
+            if _is_rate_limit_error(exc):
+                retry_after = _extract_retry_after(exc)
+                if retry_after is not None and retry_after <= _MAX_INLINE_RETRY_WAIT:
+                    await asyncio.sleep(retry_after)
+                    try:
+                        response = await self._client.aio.models.generate_content(
+                            model=self._model,
+                            contents=contents,
+                            config=types.GenerateContentConfig(
+                                response_mime_type="application/json"
+                            ),
+                        )
+                    except Exception as exc2:
+                        if _is_rate_limit_error(exc2):
+                            raise LLMRateLimitError(
+                                "Rate limited by Gemini after retry.",
+                                retry_after=_extract_retry_after(exc2),
+                            ) from exc2
+                        if _is_context_window_error(exc2):
+                            raise LLMContextWindowError(
+                                "Prompt exceeds the model context window."
+                            ) from exc2
+                        raise
+                else:
+                    raise LLMRateLimitError(
+                        "Rate limited by Gemini.", retry_after=retry_after
+                    ) from exc
+            elif _is_context_window_error(exc):
                 raise LLMContextWindowError("Prompt exceeds the model context window.") from exc
-            raise
+            else:
+                raise
 
         payload = (response.text or "").strip()
         if not payload:
@@ -165,6 +199,32 @@ def _build_text_prompt(
         f"Announcement content:\n{text}\n"
         f"{retry_instruction}"
     )
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    return isinstance(exc, _genai_errors.ClientError) and getattr(exc, "code", None) == 429
+
+
+def _extract_retry_after(exc: Exception) -> float | None:
+    # exc.details is the full response_json dict: {'error': {'details': [{'retryDelay': '54s'}]}}
+    # Try structured access first, then fall back to regex on the string representation.
+    response_json = getattr(exc, "details", None)
+    if isinstance(response_json, dict):
+        for detail in response_json.get("error", {}).get("details", []):
+            if isinstance(detail, dict):
+                delay_str = detail.get("retryDelay")
+                if isinstance(delay_str, str) and delay_str.endswith("s"):
+                    try:
+                        return float(delay_str[:-1])
+                    except ValueError:
+                        pass
+    match = re.search(r"'retryDelay':\s*'(\d+(?:\.\d+)?)s'", str(exc))
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            pass
+    return None
 
 
 def _is_context_window_error(exc: Exception) -> bool:
