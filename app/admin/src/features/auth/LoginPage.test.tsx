@@ -54,6 +54,7 @@ describe('LoginPage', () => {
     expect(apiFetch).toHaveBeenCalledWith(
       '/auth/login',
       expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({ skipRefresh: true }),
     )
   })
 })
