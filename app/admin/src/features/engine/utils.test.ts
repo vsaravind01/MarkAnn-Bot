@@ -95,11 +95,13 @@ describe('formatAgo', () => {
 describe('formatDateTime', () => {
   it('returns — for null', () => expect(formatDateTime(null)).toBe('—'))
   it('returns — for a non-finite value', () => expect(formatDateTime('not-a-number')).toBe('—'))
-  it('formats a unix-seconds timestamp as "D Mon YYYY, h:mmAM/PM"', () => {
+  it('formats a unix-seconds timestamp as "D Mon YYYY, h:mm:ss AM/PM"', () => {
     // Asserts the shape rather than an exact value to stay timezone-independent.
-    expect(formatDateTime(NOW)).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{1,2}:\d{2}(AM|PM)$/)
+    expect(formatDateTime(NOW)).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{1,2}:\d{2}:\d{2} (AM|PM)$/)
   })
   it('accepts a numeric string', () => {
-    expect(formatDateTime(String(NOW))).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{1,2}:\d{2}(AM|PM)$/)
+    expect(formatDateTime(String(NOW))).toMatch(
+      /^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{1,2}:\d{2}:\d{2} (AM|PM)$/,
+    )
   })
 })

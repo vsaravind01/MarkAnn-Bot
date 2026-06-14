@@ -26,7 +26,7 @@ export function formatAgo(ts: string | null): string {
   return s > 0 ? `${m}m ${s}s ago` : `${m}m ago`
 }
 
-/** Format a unix-seconds timestamp as e.g. "14 Jun 2026, 3:20PM" (browser-local time). */
+/** Format a unix-seconds timestamp as e.g. "14 Jun 2026, 5:01:55 PM" (browser-local time). */
 export function formatDateTime(ts: number | string | null): string {
   if (ts == null) return '—'
   const seconds = typeof ts === 'string' ? parseInt(ts, 10) : ts
@@ -36,9 +36,10 @@ export function formatDateTime(ts: number | string | null): string {
   const month = d.toLocaleString('en-US', { month: 'short' })
   const year = d.getFullYear()
   const minutes = d.getMinutes().toString().padStart(2, '0')
+  const secs = d.getSeconds().toString().padStart(2, '0')
   const ampm = d.getHours() >= 12 ? 'PM' : 'AM'
   const hour12 = d.getHours() % 12 || 12
-  return `${day} ${month} ${year}, ${hour12}:${minutes}${ampm}`
+  return `${day} ${month} ${year}, ${hour12}:${minutes}:${secs} ${ampm}`
 }
 
 export function derivePollerDisplay(h: PollerHealth): PollerDisplay {

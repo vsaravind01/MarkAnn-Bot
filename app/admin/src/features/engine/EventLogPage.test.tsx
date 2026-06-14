@@ -20,9 +20,9 @@ describe('EventLogPage', () => {
     expect(screen.getByText('processed INFY')).toBeInTheDocument()
     expect(screen.getByText('corp_ann')).toBeInTheDocument()
     expect(screen.getByText('OK')).toBeInTheDocument()
-    // Time cell uses the "D Mon YYYY, h:mmAM/PM" format.
+    // Time cell uses the "D Mon YYYY, h:mm:ss AM/PM" format.
     expect(
-      screen.getByText(/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{1,2}:\d{2}(AM|PM)$/),
+      screen.getByText(/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{1,2}:\d{2}:\d{2} (AM|PM)$/),
     ).toBeInTheDocument()
   })
 })
