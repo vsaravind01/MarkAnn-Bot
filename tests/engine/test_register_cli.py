@@ -110,6 +110,36 @@ async def test_register_processor_seeds_default_config(db_factory):
         assert json.loads(row.config) == {"pool_size": 8}
 
 
+async def test_seed_registers_and_enables_defaults(db_factory):
+    code = await run_command(["seed"], db_factory)
+    assert code == 0
+    async with db_factory() as db:
+        poller = (await db.execute(select(PollerConfig))).scalar_one()
+        processor = (await db.execute(select(ProcessorConfig))).scalar_one()
+        link = (await db.execute(select(ProcessorPollerLink))).scalar_one()
+        assert poller.api_name == "corp_ann"
+        assert poller.enabled is True
+        assert processor.api_name == "corp_ann"
+        assert processor.enabled is True
+        assert link.processor_id == processor.id
+        assert link.poller_id == poller.id
+
+
+async def test_seed_is_idempotent_and_preserves_operator_disable(db_factory):
+    await run_command(["seed"], db_factory)
+    # Operator turns the poller off after the initial seed.
+    await run_command(["disable", "poller", "corp_ann"], db_factory)
+
+    # A subsequent seed (e.g. a redeploy) must not re-enable it.
+    code = await run_command(["seed"], db_factory)
+    assert code == 0
+    async with db_factory() as db:
+        assert (await db.execute(select(PollerConfig))).scalar_one().enabled is False
+        # No duplicate rows were created.
+        assert len((await db.execute(select(PollerConfig))).scalars().all()) == 1
+        assert len((await db.execute(select(ProcessorConfig))).scalars().all()) == 1
+
+
 async def test_reregister_preserves_operator_config_override(db_factory):
     await run_command(["poller", "engine.pollers.corp_ann"], db_factory)
     # Operator customises the stored config.

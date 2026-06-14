@@ -12,12 +12,20 @@ from database.models import PollerConfig, ProcessorConfig, ProcessorPollerLink
 from database.session import AsyncSessionLocal
 from engine.registry import (
     ContractError,
+    api_name_from_module,
     load_poller_module,
     load_processor_module,
     schema_incompatibilities,
 )
 
 logger = logging.getLogger(__name__)
+
+# Built-in components seeded on a fresh deployment so the shipped feature works
+# out of the box. Each entry is (module, [linked poller api names]).
+_DEFAULT_POLLER_MODULES: list[str] = ["engine.pollers.corp_ann"]
+_DEFAULT_PROCESSOR_MODULES: list[tuple[str, list[str]]] = [
+    ("engine.processors.corp_ann", ["corp_ann"]),
+]
 
 
 def _refreshed_config(default_config: dict, existing_raw: str | None) -> str:
@@ -55,6 +63,7 @@ def _build_parser() -> argparse.ArgumentParser:
     disable.add_argument("api_name")
 
     sub.add_parser("list")
+    sub.add_parser("seed", help="Register and enable the built-in default components")
     return parser
 
 
@@ -194,6 +203,41 @@ async def _list(db) -> int:
     return 0
 
 
+async def _seed(db) -> int:
+    """Register and enable the built-in default components.
+
+    Idempotent: existing rows are re-registered (schema refreshed, enabled state
+    untouched) and only newly-created rows are enabled. An operator who disables
+    a component therefore keeps it disabled across restarts.
+    """
+    for module in _DEFAULT_POLLER_MODULES:
+        is_new = (
+            await db.execute(select(PollerConfig).where(PollerConfig.module == module))
+        ).scalar_one_or_none() is None
+        rc = await _register_poller(db, module)
+        if rc != 0:
+            return rc
+        if is_new:
+            rc = await _set_enabled(db, "poller", api_name_from_module(module), True)
+            if rc != 0:
+                return rc
+
+    for module, poller_apis in _DEFAULT_PROCESSOR_MODULES:
+        is_new = (
+            await db.execute(select(ProcessorConfig).where(ProcessorConfig.module == module))
+        ).scalar_one_or_none() is None
+        rc = await _register_processor(db, module, poller_apis)
+        if rc != 0:
+            return rc
+        if is_new:
+            rc = await _set_enabled(db, "processor", api_name_from_module(module), True)
+            if rc != 0:
+                return rc
+
+    print("seed: default components registered")
+    return 0
+
+
 async def run_command(argv: list[str], session_factory) -> int:
     args = _build_parser().parse_args(argv)
     async with session_factory() as db:
@@ -207,6 +251,8 @@ async def run_command(argv: list[str], session_factory) -> int:
             return await _set_enabled(db, args.kind, args.api_name, False)
         if args.command == "list":
             return await _list(db)
+        if args.command == "seed":
+            return await _seed(db)
     return 2
 
 

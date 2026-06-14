@@ -45,6 +45,24 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # ── Registry seed (runs once after migrate, then exits) ───────────────────
+  # Registers + enables the built-in default components so a fresh deployment
+  # comes up with the shipped feature running. Idempotent and only enables
+  # newly-created rows, so operator enable/disable choices survive restarts.
+
+  register:
+    build: .
+    command: uv run python -m engine.register seed
+    environment:
+      DATABASE_URL: postgresql+asyncpg://markann:markann@postgres:5432/markann
+      UV_PROJECT_ENVIRONMENT: /venv
+    volumes:
+      - .:/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
   # ── Application services ──────────────────────────────────────────────────
 
   backend:
@@ -112,13 +130,19 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       POLL_INTERVAL: ${POLL_INTERVAL:-5}
       UV_PROJECT_ENVIRONMENT: /venv
+    # Lets OPENAI_BASE_URL=http://host.docker.internal:8000/v1 reach a server
+    # running on the host (e.g. local vLLM), including on Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - .:/app
     depends_on:
-      migrate:
+      register:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
