@@ -321,7 +321,7 @@
   color: var(--fg-muted);
 }
 
-.log .lvl {
+.lvl {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;

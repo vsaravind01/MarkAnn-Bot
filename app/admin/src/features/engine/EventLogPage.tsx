@@ -1,4 +1,4 @@
-import { formatAgo } from './utils'
+import { formatDateTime } from './utils'
 import { useEvents } from './useEvents'
 import './engine.css'
 
@@ -24,16 +24,28 @@ export function EventLogPage() {
       {events.length === 0 ? (
         <div className="empty-state">No events yet — they appear as the engine runs.</div>
       ) : (
-        <div className="log">
-          {events.map((e, i) => (
-            <div className="log-row" key={i}>
-              <span className="ts num">{formatAgo(String(e.ts))}</span>
-              <span className="log-api">{e.api ?? ''}</span>
-              <span className={`lvl ${e.lvl}`}>{LVL_LABEL[e.lvl] ?? e.lvl}</span>
-              <span className="msg">{e.msg}</span>
-            </div>
-          ))}
-        </div>
+        <table className="engine-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Component</th>
+              <th>Level</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map((event, i) => (
+              <tr key={i}>
+                <td className="num">{formatDateTime(event.ts)}</td>
+                <td className="log-api">{event.api ?? '—'}</td>
+                <td>
+                  <span className={`lvl ${event.lvl}`}>{LVL_LABEL[event.lvl] ?? event.lvl}</span>
+                </td>
+                <td className="msg">{event.msg}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   )

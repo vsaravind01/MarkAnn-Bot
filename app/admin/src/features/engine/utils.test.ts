@@ -6,6 +6,7 @@ import {
   deriveProcessorDisplay,
   deriveProcessorState,
   formatAgo,
+  formatDateTime,
 } from './utils'
 
 const NOW = 1748515200
@@ -89,4 +90,16 @@ describe('formatAgo', () => {
   it('formats seconds', () => expect(formatAgo(String(NOW - 30))).toBe('30s ago'))
   it('formats minutes and seconds', () => expect(formatAgo(String(NOW - 90))).toBe('1m 30s ago'))
   it('formats whole minutes', () => expect(formatAgo(String(NOW - 120))).toBe('2m ago'))
+})
+
+describe('formatDateTime', () => {
+  it('returns — for null', () => expect(formatDateTime(null)).toBe('—'))
+  it('returns — for a non-finite value', () => expect(formatDateTime('not-a-number')).toBe('—'))
+  it('formats a unix-seconds timestamp as "D Mon YYYY, h:mmAM/PM"', () => {
+    // Asserts the shape rather than an exact value to stay timezone-independent.
+    expect(formatDateTime(NOW)).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{1,2}:\d{2}(AM|PM)$/)
+  })
+  it('accepts a numeric string', () => {
+    expect(formatDateTime(String(NOW))).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}, \d{1,2}:\d{2}(AM|PM)$/)
+  })
 })
