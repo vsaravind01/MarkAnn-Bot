@@ -1,71 +1,71 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/architecture/data-flow/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/architecture/data-flow/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/architecture/engine/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/architecture/engine/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/architecture/overview/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/architecture/overview/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/architecture/registry/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/architecture/registry/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/architecture/security/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/architecture/security/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/guides/add-an-alert-type/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/guides/add-an-alert-type/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/guides/llm-providers/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/guides/llm-providers/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/guides/local-development/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/guides/local-development/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/operations/admin-console/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/operations/admin-console/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/operations/deployment/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/operations/deployment/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/operations/observability/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/operations/observability/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/operations/runbook/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/operations/runbook/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/reference/api/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/reference/api/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/reference/component-contract/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/reference/component-contract/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/reference/configuration/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/reference/configuration/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
     <url>
-         <loc>https://vsaravind01.github.io/MarkAnn-Bot/reference/data-model/</loc>
+         <loc>https://vsaravind.me/MarkAnn-Bot/reference/data-model/</loc>
          <lastmod>2026-07-20</lastmod>
     </url>
 </urlset>
