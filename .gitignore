@@ -33,3 +33,6 @@ scripts/logs/
 CLAUDE.md
 docs/superpowers/
 .worktrees/
+
+# MkDocs build output
+site/

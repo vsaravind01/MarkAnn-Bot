@@ -1,0 +1,92 @@
+site_name: MarkAnn
+site_description: Real-time, AI-powered market-alert platform for Indian stock markets (NSE)
+site_url: https://vsaravind01.github.io/MarkAnn-Bot/
+repo_url: https://github.com/vsaravind01/MarkAnn-Bot
+repo_name: vsaravind01/MarkAnn-Bot
+edit_uri: edit/master/docs/
+copyright: Licensed under the GNU General Public License v2.0
+
+theme:
+  name: material
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - navigation.tracking
+    - navigation.indexes
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+# docs/superpowers/ holds local-only planning specs and is gitignored; keep it
+# out of the built site even when present in a working tree.
+exclude_docs: |
+  superpowers/
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - The Engine: architecture/engine.md
+      - Component Registry: architecture/registry.md
+      - Data Flow & Redis: architecture/data-flow.md
+      - Security & Auth: architecture/security.md
+  - Guides:
+      - Add an Alert Type: guides/add-an-alert-type.md
+      - LLM Providers: guides/llm-providers.md
+      - Local Development: guides/local-development.md
+  - Operations:
+      - Deployment: operations/deployment.md
+      - Admin Console: operations/admin-console.md
+      - Runbook: operations/runbook.md
+      - Observability: operations/observability.md
+  - Reference:
+      - Component Contract: reference/component-contract.md
+      - Configuration: reference/configuration.md
+      - Data Model: reference/data-model.md
+      - API Endpoints: reference/api.md

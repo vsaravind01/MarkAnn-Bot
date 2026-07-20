@@ -1,0 +1,32 @@
+name: Deploy docs
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - docs/**
+      - mkdocs.yml
+      - .github/workflows/docs.yml
+  workflow_dispatch:
+
+# Push the built site to the gh-pages branch. In the repo settings, set
+# Pages → Build and deployment → Source to "Deploy from a branch" → gh-pages.
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Build and deploy
+        run: uv run --group docs mkdocs gh-deploy --force
